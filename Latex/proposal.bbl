@@ -1,0 +1,48 @@
+\begin{thebibliography}{1}
+
+\bibitem{bangalore2007system}
+Srinivas Bangalore and Owen~Christopher Rambow.
+\newblock System and method for natural language generation, June~12 2007.
+\newblock US Patent 7,231,341.
+
+\bibitem{ganesan2010opinosis}
+Kavita Ganesan, ChengXiang Zhai, and Jiawei Han.
+\newblock Opinosis: a graph-based approach to abstractive summarization of
+  highly redundant opinions.
+\newblock In {\em Proceedings of the 23rd international conference on
+  computational linguistics}, pages 340--348. Association for Computational
+  Linguistics, 2010.
+
+\bibitem{rnnlg}
+Cambridge Dialogue~Systems Group.
+\newblock Rnnlg.
+\newblock \url{https://github.com/shawnwun/RNNLG}, 2017.
+
+\bibitem{namas}
+Facebook~AI Group.
+\newblock Namas.
+\newblock \url{https://github.com/facebookarchive/NAMAS}, 2018.
+
+\bibitem{iyyer2014generating}
+Mohit Iyyer, Jordan Boyd-Graber, and Hal Daum{\'e}~III.
+\newblock Generating sentences from semantic vector space representations.
+\newblock In {\em Nips workshop on learning semantics}, 2014.
+
+\bibitem{nallapati2016abstractive}
+Ramesh Nallapati, Bowen Zhou, Caglar Gulcehre, Bing Xiang, et~al.
+\newblock Abstractive text summarization using sequence-to-sequence rnns and
+  beyond.
+\newblock {\em arXiv preprint arXiv:1602.06023}, 2016.
+
+\bibitem{rush2015neural}
+Alexander~M Rush, Sumit Chopra, and Jason Weston.
+\newblock A neural attention model for abstractive sentence summarization.
+\newblock {\em arXiv preprint arXiv:1509.00685}, 2015.
+
+\bibitem{sutskever2011generating}
+Ilya Sutskever, James Martens, and Geoffrey~E Hinton.
+\newblock Generating text with recurrent neural networks.
+\newblock In {\em Proceedings of the 28th International Conference on Machine
+  Learning (ICML-11)}, pages 1017--1024, 2011.
+
+\end{thebibliography}
