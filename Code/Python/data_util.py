@@ -11,6 +11,7 @@ import nltk
 import numpy as np
 import re
 import pickle
+import random
 
 #from __future__ import print_function
 
@@ -19,12 +20,14 @@ import pickle
 #START_TOKEN = "<s>"
 #END_TOKEN = "</s>"
 EMBEDDING_DIM = 100
-VALIDATION_SPLIT = 0.2
+VALIDATION_SPLIT = 0.15
+TEST_SPLIT = 0.05
 MAX_NUM_WORDS = 30000
 MAX_SEQUENCE_LENGTH = 1500
 
 MPD_PATH = '/Users/sofiasf/Data224n/SpotifyPlaylists/data/'
 GLOVE_PATH = '/Users/sofiasf/Data224n/Glove/'
+DATA_PATH = '/Users/sofiasf/Documents/Stanford/Win18/cs224n/cs224n-spotify/Data'
 
 def process_mpd(path):
     data = []
@@ -59,62 +62,118 @@ def normalize_name(name):
     name = re.sub(r'\s+', ' ', name).strip()
     return name
 
-def load_embeddings(path):
-    embeddings = {}
+def load_GloVe(path):
+    vocabulary = {}
+    E = []
     with open(os.path.join(GLOVE_PATH, 'glove.6B.100d.txt')) as f:
+        i = 0
         for line in f:
             values = line.split()
-            word = values[0]
-            coefs = np.asarray(values[1:], dtype = 'float32')
-            embeddings[word] = coefs
-    print('Found %s word vectors.'%len(embeddings))
-    return embeddings
+            vocabulary[values[0]] = i
+            E.append(values[1:])
+            i += 1
+    print('Found %s word vectors.'%len(vocabulary))
+    E.append(np.zeros(len(values[1:])))
+    return (vocabulary, np.asarray(E, dtype = 'float32'))
 
-def token_to_idx(data, word_to_idx):
-    null_idx = len(word_to_idx)
+def token_to_idx(data, vocabulary):
+    null_idx = len(vocabulary)
     data_idx = []
     for x, y in data:
         x_idx = []
         for token in x:
-            if token in word_to_idx:
-                x_idx.append(word_to_idx[token])
+            if token in vocabulary:
+                x_idx.append(vocabulary[token])
             else:
                 x_idx.append(null_idx)
         y_idx = []
         for token in y:
-            if token in word_to_idx:
-                y_idx.append(word_to_idx[token])
+            if token in vocabulary:
+                y_idx.append(vocabulary[token])
             else:
                 y_idx.append(null_idx)
         data_idx.append((x_idx, y_idx))
     return data_idx
 
-def create_embedding_matrix(embeddings):
-    word_to_idx = {token: idx for idx, token in enumerate(set(embeddings.keys()))}
-    E = np.zeros((len(word_to_idx) + 1, EMBEDDING_DIM))
-    for word, i in word_to_idx.items():
-        embedding_vector = embeddings.get(word)
-        if embedding_vector is not None:
-            E[i] = embedding_vector
-    return E, word_to_idx
+def load_and_preprocess_data(output = 'tokens_tracks.txt', process_mpd = False):
+    fname = os.path.join(DATA_PATH, output)
+    if not os.path.isfile(fname):
+        data, max_x, max_y = process_mpd(MPD_PATH)
+        with open(fname, 'w') as f:
+            for tracks, title in data:
+                for token in title:
+                    f.write(token)
+                    f.write(' ')
+                f.write('\t')
+                for token in tracks:
+                    f.write(token)
+                    f.write(' ')
+                f.write('\n')
+    else:
+        data = []
+        max_x = 0
+        max_y = 0
+        with open(fname, 'r') as f:
+            for line in f:
+                title, tracks = line.split('\t')
+                title = title.split()
+                tracks = tracks.split()
+                data.append((tracks, title))
+                if len(title) > max_y:
+                    max_y = len(y)
+                if len(tracks) > max_x:
+                    max_x = len(x)
+
+    vocabulary, E = loadGloVe(GLOVE_PATH)
+    data_idx = token_to_idx(data, vocabulary)
+
+    # Split into train, dev, test
+    N = len(data_idx)
+
+    num_dev = int(N*VALIDATION_SPLIT)
+    num_test = int(N*TEST_SPLIT)
+    num_train = N - num_dev - num_test
+
+    indices = np.arange(N)
+    np.random.seed(23)
+    np.random.shuffle(indices)
+    data_idx = data_idx[indices]
+    data = data[indices]
+
+    train = data_idx[:num_train]
+    dev   = data_idx[(num_train+1):-num_test]
+    test  = data_idx[-num_test:]
+
+
+    train_raw = data[:num_train]
+    dev_raw   = data[num_train:-num_test]
+    test_raw  = data[-num_test:]
+
+    return train, dev, test, train_raw, dev_raw, test_raw, max_x, max_y, E
+
 
 if __name__ == '__main__':
-    data, max_x, max_y = process_mpd(MPD_PATH)
-    embeddings = load_embedding(GLOVE_PATH)
-    E, word_to_idx = create_embedding_matrix(embeddings)
-    data_idx = token_to_idx(data, word_to_idx)
-    filename = 'tokens0.txt'
-    with open(filename, 'w') as f:
-        for tracks, title in data:
-            for token in title:
-                f.write(token)
-                f.write(' ')
-            f.write('\t')
-            for token in tracks:
-                f.write(token)
-                f.write(' ')
-            f.write('\n')
+    pass
 
+# def load_embeddings(path):
+    # embeddings = {}
+    # with open(os.path.join(GLOVE_PATH, 'glove.6B.100d.txt')) as f:
+        # for line in f:
+            # values = line.split()
+            # word = values[0]
+            # coefs = np.asarray(values[1:], dtype = 'float32')
+            # embeddings[word] = coefs
+    # print('Found %s word vectors.'%len(embeddings))
+    # return embeddings
+
+# def create_embedding_matrix(embeddings):
+    # word_to_idx = {token: idx for idx, token in enumerate(set(embeddings.keys()))}
+    # E = np.zeros((len(word_to_idx) + 1, EMBEDDING_DIM))
+    # for word, i in word_to_idx.items():
+        # embedding_vector = embeddings.get(word)
+        # if embedding_vector is not None:
+            # E[i] = embedding_vector
+    # return E, word_to_idx
 
 # def to_date(epoch):
     # return datetime.datetime.fromtimestamp(epoch).strftime("%Y-%m-%d")

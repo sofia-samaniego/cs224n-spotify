@@ -18,7 +18,6 @@
 \nipsfinalcopy % Uncomment for camera-ready version
 
 \begin{document}
-
 \maketitle
 
 %\begin{abstract}
@@ -26,7 +25,7 @@
 
 \section{Problem Description}
 \label{description}
-The goal is to implement a model that comes up with a name for a playlist given information about its tracklist. 
+The goal is to implement a model that generates a name for a playlist given information about its tracklist. 
 In particular, we will attempt to construct a network that builds an internal representation of the names of the tracks included in the playlist and then uses natural language generation techniques to come up with a title that could be close to one a human might devise. 
 
 \section{Data}
@@ -52,7 +51,6 @@ Additionally, Spotify provides a \textsf{python} script that computes the follow
  \hline
  \end{tabular}
 \end{table}
-
 
 \begin{table}[h!]
 \caption{Top playlist names, artists, and songs (with counts)}
@@ -88,7 +86,7 @@ Additionally, Spotify provides a \textsf{python} script that computes the follow
 \label{methods}
 Coming up with a playlist name is somehow related to the task of creating a condensed representation of an input text, namely the names of the songs contained in it, the artists that perform them, and their genres.
 Therefore, we could try to use automatic summarization techniques for this purpose. In particular, we could achieve this in two ways: through extractive summarization, that is, by choosing a subset of words in the original input that capture the gist of the playlist, or though abstractive summarization, that is, by generating a new title that conveys the relevant information, aspects of which may not appear in the input text.  
-One way to modify such methods would be to somehow introduce the numerical features we have available (such as duration of the platlist, number of unique artists, time created) as additional input to our neural network, as this might help the network come up with better names for the playlists.
+One way to modify such methods would be to somehow introduce the numerical features we have available (such as duration of the playlist, number of unique artists, time created) as additional input to our neural network, as this might help the network generate better names for the playlists.
 
 \section{Related Work}
 \label{work}
@@ -109,9 +107,9 @@ Meanwhile, for a better understanding of generative language techniques, we prop
 Other good sources of inspiration could be the following blogposts:
 \begin{itemize}
 	\item \href{https://medium.com/deep-writing}{Deep Writing (Medium)}
-	\item \href{https://blog.paperspace.com/recurrent-neural-networks-part-1-2/}{Recurrent Neural Networkds (Paperspace)}
+	\item \href{https://blog.paperspace.com/recurrent-neural-networks-part-1-2/}{Recurrent Neural Networks (Paperspace)}
 	\item \href{https://ehudreiter.com/2016/12/12/nlg-and-ml/}{Natural Language Generation and Machine Learning (Ehud Reiter's Blog)}
-
+\end{itemize}
 
 \section{Evaluation Plan}
 Deciding whether a playlist name is `good" is a highly subjective task and best determined by human judgement, so coming up with an automatic evaluation metric could be particularly difficult.
