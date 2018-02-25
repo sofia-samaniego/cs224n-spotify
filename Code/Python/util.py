@@ -11,7 +11,10 @@ from __future__ import division
 import sys
 import time
 import logging
-import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 from collections import defaultdict, Counter, OrderedDict
 import numpy as np
 from numpy import array, zeros, allclose
@@ -19,6 +22,7 @@ from numpy import array, zeros, allclose
 logger = logging.getLogger("hw3")
 logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+
 
 def read_conll(fstream):
     """

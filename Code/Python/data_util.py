@@ -17,8 +17,11 @@ import random
 
 #P_CASE = "CASE:"
 #CASES = ["aa", "AA", "Aa", "aA"]
-#START_TOKEN = "<s>"
-#END_TOKEN = "</s>"
+START_TOKEN = "<s>"
+END_TOKEN   = "</s>"
+UNK_TOKEN   = "<unk>"
+PAD_TOKEN   = "<mask>"
+
 EMBEDDING_DIM = 100
 VALIDATION_SPLIT = 0.15
 TEST_SPLIT = 0.05
@@ -26,6 +29,7 @@ MAX_NUM_WORDS = 30000
 MAX_SEQUENCE_LENGTH = 1500
 
 MPD_PATH = '/Users/sofiasf/Data224n/SpotifyPlaylists/data/'
+MPD_DEBUG_PATH = '/Users/sofiasf/Data224n/SpotifyPlaylists/data_debug/'
 GLOVE_PATH = '/Users/sofiasf/Data224n/Glove/'
 DATA_PATH = '/Users/sofiasf/Documents/Stanford/Win18/cs224n/cs224n-spotify/Data'
 
@@ -53,7 +57,6 @@ def process_mpd(path):
                 if len(x) > max_len_x:
                     max_len_x = len(x)
                 data.append((x,y))
-    print('Found %s playlists.' % len(data))
     return (data, max_len_x, max_len_y)
 
 def normalize_name(name):
@@ -62,7 +65,7 @@ def normalize_name(name):
     name = re.sub(r'\s+', ' ', name).strip()
     return name
 
-def load_GloVe(path):
+def create_GloVe_embedding(path):
     vocabulary = {}
     E = []
     with open(os.path.join(GLOVE_PATH, 'glove.6B.100d.txt')) as f:
@@ -73,11 +76,22 @@ def load_GloVe(path):
             E.append(values[1:])
             i += 1
     print('Found %s word vectors.'%len(vocabulary))
+
+    # Add special tokens
+    vocabulary[UNK_TOKEN] = len(vocabulary)
     E.append(np.zeros(len(values[1:])))
+    vocabulary[START_TOKEN] = len(vocabulary)
+    E.append(np.zeros(len(values[1:])))
+    vocabulary[END_TOKEN] = len(vocabulary)
+    E.append(np.zeros(len(values[1:])))
+    vocabulary[PAD_TOKEN] = len(vocabulary)
+    E.append(np.zeros(len(values[1:])))
+    print('Added 4 special characters: <unk>, <mask>, <s>, </s>')
+
     return (vocabulary, np.asarray(E, dtype = 'float32'))
 
 def token_to_idx(data, vocabulary):
-    null_idx = len(vocabulary)
+    null_idx = vocabulary[UNK_TOKEN]
     data_idx = []
     for x, y in data:
         x_idx = []
@@ -95,10 +109,11 @@ def token_to_idx(data, vocabulary):
         data_idx.append((x_idx, y_idx))
     return data_idx
 
-def load_and_preprocess_data(output = 'tokens_tracks.txt', process_mpd = False):
+def load_and_preprocess_data(output = 'tokens_tracks.txt', debug = False):
     fname = os.path.join(DATA_PATH, output)
     if not os.path.isfile(fname):
-        data, max_x, max_y = process_mpd(MPD_PATH)
+        dir_mpd = MPD_DEBUG_PATH if debug else MDP_PATH
+        data, max_x, max_y = process_mpd(dir_mpd)
         with open(fname, 'w') as f:
             for tracks, title in data:
                 for token in title:
@@ -120,11 +135,12 @@ def load_and_preprocess_data(output = 'tokens_tracks.txt', process_mpd = False):
                 tracks = tracks.split()
                 data.append((tracks, title))
                 if len(title) > max_y:
-                    max_y = len(y)
+                    max_y = len(title)
                 if len(tracks) > max_x:
-                    max_x = len(x)
+                    max_x = len(tracks)
 
-    vocabulary, E = loadGloVe(GLOVE_PATH)
+    print('Found %s playlists.' % len(data))
+    vocabulary, E = create_GloVe_embedding(GLOVE_PATH)
     data_idx = token_to_idx(data, vocabulary)
 
     # Split into train, dev, test
@@ -137,19 +153,19 @@ def load_and_preprocess_data(output = 'tokens_tracks.txt', process_mpd = False):
     indices = np.arange(N)
     np.random.seed(23)
     np.random.shuffle(indices)
-    data_idx = data_idx[indices]
-    data = data[indices]
+
+    data_idx = [data_idx[indices[i]] for i in range(N)]
+    data = [data[indices[i]] for i in range(N)]
 
     train = data_idx[:num_train]
     dev   = data_idx[(num_train+1):-num_test]
     test  = data_idx[-num_test:]
 
-
     train_raw = data[:num_train]
     dev_raw   = data[num_train:-num_test]
     test_raw  = data[-num_test:]
 
-    return train, dev, test, train_raw, dev_raw, test_raw, max_x, max_y, E
+    return train, dev, test, train_raw, dev_raw, test_raw, max_x, max_y, E, vocabulary
 
 
 if __name__ == '__main__':

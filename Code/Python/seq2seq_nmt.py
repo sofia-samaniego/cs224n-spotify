@@ -150,6 +150,7 @@ class SequencePredictor(Model):
                                                            scope = "plain_decoder")
 
         preds = tf.contrib.layers.linear(decoder_outputs, self.config.voc_size)
+        #decoder_prediction = tf.argmax(preds, 2)
 
         return preds
 
@@ -183,6 +184,7 @@ class SequencePredictor(Model):
         """
 
         optimizer = tf.train.AdamOptimizer(learning_rate = self.config.lr)
+        # train_op = optimizer.minimize(loss)
         gradients, variables = zip(*optimizer.compute_gradients(loss))
         if self.config.clip_gradients:
             gradients, _ = tf.clip_by_global_norm(gradients, self.config.max_grad_norm)
@@ -211,6 +213,7 @@ class SequencePredictor(Model):
         return losses, grad_norms
 
     def fit(self, sess, train):
+    #def fit(self, sess, saver, train, dev):
         losses, grad_norms = [], []
         for epoch in range(self.config.n_epochs):
             logger.info("Epoch %d out of %d", epoch + 1, self.config.n_epochs)
@@ -219,6 +222,18 @@ class SequencePredictor(Model):
             grad_norms.append(grad_norm)
 
         return losses, grad_norms
+
+    # def fit(self, sess, saver, parser, train_examples, dev_set):
+        # best_dev_UAS = 0
+        # for epoch in range(self.config.n_epochs):
+            # print "Epoch {:} out of {:}".format(epoch + 1, self.config.n_epochs)
+            # dev_UAS = self.run_epoch(sess, parser, train_examples, dev_set)
+            # if dev_UAS > best_dev_UAS:
+                # best_dev_UAS = dev_UAS
+                # if saver:
+                    # print "New best dev UAS! Saving model in ./data/weights/parser.weights"
+                    # saver.save(sess, './data/weights/parser.weights')
+            # print
 
     def __init__(self, config, pretrained_embeddings):
         self.pretrained_embeddings = pretrained_embeddings
@@ -273,4 +288,31 @@ if __name__ == '__main__':
         print("TRAINING")
         print(80 * "=")
         losses, grad_norms = model.fit(sess, train)
+
+# def main(debug=True):
+
+    # with tf.Session(graph=graph) as session:
+        # parser.session = session
+        # session.run(init_op)
+
+        # print 80 * "="
+        # print "TRAINING"
+        # print 80 * "="
+        # model.fit(session, saver, parser, train_examples, dev_set)
+
+        # if not debug:
+            # print 80 * "="
+            # print "TESTING"
+            # print 80 * "="
+            # print "Restoring the best model weights found on the dev set"
+            # saver.restore(session, './data/weights/parser.weights')
+            # print "Final evaluation on test set",
+            # UAS, dependencies = parser.parse(test_set)
+            # print "- test UAS: {:.2f}".format(UAS * 100.0)
+            # print "Writing predictions"
+            # with open('q2_test.predicted.pkl', 'w') as f:
+                # cPickle.dump(dependencies, f, -1)
+            # print "Done!"
+
+
 
