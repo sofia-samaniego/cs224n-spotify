@@ -105,6 +105,6 @@ class Model(object):
 
     def build(self):
         self.add_placeholders()
-        self.pred = self.add_prediction_op()
-        self.loss = self.add_loss_op(self.pred)
+        self.train_pred, self.infer_pred = self.add_prediction_op()
+        self.loss = self.add_loss_op(self.train_pred)
         self.train_op = self.add_training_op(self.loss)
