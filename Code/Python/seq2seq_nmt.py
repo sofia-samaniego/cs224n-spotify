@@ -78,13 +78,9 @@ class SequencePredictor(Model):
 
         return feed_dict
 
-    def get_embedding(self, scope):
-        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE) as scope:
-            E = tf.get_variable("E", initializer = self.pretrained_embeddings)
-            return E
-
     def add_embeddings(self):
-        """Adds an embedding layer that maps from input tokens (integers) to vectors and then
+        """
+        Adds an embedding layer that maps from input tokens (integers) to vectors and then
         concatenates those vectors:
             - Creates a tf.Variable and initializes it with self.pretrained_embeddings.
             - Uses the encoder_inputs and decoder_inputs to index into the embeddings tensor,
@@ -101,17 +97,12 @@ class SequencePredictor(Model):
         return encoder_inputs_embedded, decoder_inputs_embedded
 
     def add_prediction_op(self):
-        """Runs an rnn on the input using TensorFlows's
-        @tf.nn.dynamic_rnn function, and returns the final state as a prediction.
-
-        TODO:
-            - Call tf.nn.dynamic_rnn using @cell below. See:
-              https://www.tensorflow.org/api_docs/python/nn/recurrent_neural_networks
-            - Apply a sigmoid transformation on the final state to
-              normalize the inputs between 0 and 1.
+        """Runs a seq2seq model on the input using TensorFlows
+        and returns the final state of the decoder as a prediction.
 
         Returns:
-            preds: tf.Tensor of shape (batch_size, 1)
+            train_preds: tf.Tensor of shape #TODO
+            pred_outputs: tf.Tensor of shape #TODO
         """
 
         # Encoder
@@ -171,11 +162,12 @@ class SequencePredictor(Model):
         return loss
 
     def add_training_op(self, loss):
-        """Sets up the training Ops.
+        """
+        Sets up the training Ops.
 
         Creates an optimizer and applies the gradients to all trainable variables.
         The Op returned by this function is what must be passed to the
-        `sess.run()` call to cause the model to train. See
+        `sess.run()` call to cause the model to train.
 
         Args:
             loss: Loss tensor.
@@ -198,7 +190,8 @@ class SequencePredictor(Model):
         return summary_op
 
     def train_on_batch(self, sess, inputs_batch, targets_batch):
-        """Perform one step of gradient descent on the provided batch of data.
+        """
+        Perform one step of gradient descent on the provided batch of data.
         This version also returns the norm of gradients.
         """
         inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc)
@@ -222,13 +215,14 @@ class SequencePredictor(Model):
         return loss, grad_norm, summ
 
     def predict_on_batch(self, sess, inputs_batch):
-        """Make predictions for the provided batch of data
+        """
+        Make predictions for the provided batch of data
 
         Args:
             sess: tf.Session()
-            input_batch: np.ndarray of shape (n_samples, n_features)
+            input_batch: np.ndarray of shape (n_samples, #TODO)
         Returns:
-            predictions: np.ndarray of shape (n_samples, n_classes)
+            predictions: np.ndarray of shape (n_samples, max_length_y)
         """
         inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc)
         length_inputs_batch = np.asarray([min(config.max_length_x,len(item)) for item in inputs_batch])
@@ -250,7 +244,6 @@ class SequencePredictor(Model):
         references = []
         for batch in minibatches(dev, self.config.batch_size):
             inputs_batch, targets_batch = batch
-            print(inputs_batch.shape)
             prediction = list(self.predict_on_batch(sess, inputs_batch))
             predictions += prediction
             references += list(targets_batch)
