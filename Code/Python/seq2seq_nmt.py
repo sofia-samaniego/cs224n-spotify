@@ -32,7 +32,7 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 100
-    n_epochs = 1
+    n_epochs = 40
     lr = 0.2
     max_grad_norm = 5.
     clip_gradients = True
@@ -127,7 +127,7 @@ class SequencePredictor(Model):
         train_helper = tf.contrib.seq2seq.TrainingHelper(decoder_inputs_embedded,
                                                          self.length_decoder_inputs)
 
-        start_tokens = tf.fill([self.config.batch_size], self.config.voc[START_TOKEN])
+        start_tokens = tf.fill([tf.shape(encoder_inputs_embedded)[0]], self.config.voc[START_TOKEN])
         end_token = self.config.voc[END_TOKEN]
         pred_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(E, start_tokens, end_token)
 
@@ -250,6 +250,7 @@ class SequencePredictor(Model):
         references = []
         for batch in minibatches(dev, self.config.batch_size):
             inputs_batch, targets_batch = batch
+            print(inputs_batch.shape)
             prediction = list(self.predict_on_batch(sess, inputs_batch))
             predictions += prediction
             references += list(targets_batch)
@@ -296,7 +297,8 @@ if __name__ == '__main__':
     # Get data and embeddings
     start = time.time()
     print("Loading data...")
-    train, dev, test, _, _, _, max_x, max_y, E, voc = load_and_preprocess_data(output = 'tokens_debug.txt', debug = True)
+    train, dev, test, _, _, _, max_x, max_y, E, voc = load_and_preprocess_data()
+    # train, dev, test, _, _, _, max_x, max_y, E, voc = load_and_preprocess_data(output = 'tokens_debug.txt', debug = True)
     print("Took {} seconds to load data".format(time.time() - start))
 
     # Set up some parameters.
