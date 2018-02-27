@@ -18,11 +18,46 @@ except ImportError:
 from collections import defaultdict, Counter, OrderedDict
 import numpy as np
 from numpy import array, zeros, allclose
+from data_util import UNK_TOKEN, START_TOKEN, END_TOKEN, PAD_TOKEN
 
-logger = logging.getLogger("hw3")
+logger = logging.getLogger("project")
 logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
+
+def padded_batch(batch, max_length, voc = None, option = None):
+    padded_items, mask_sequences = [], []
+    for item in batch:
+        original_len = len(item)
+        if len(item) >= max_length:
+            padded_item = item[:max_length]
+            mask_sequence = [True]*max_length
+        else:
+            padded_item = item + [voc[PAD_TOKEN]]*(max_length - len(item))
+            mask_sequence = [True]*len(item) + [False]*(max_length - len(item))
+        if option == 'decoder_inputs':
+            padded_item = padded_item[0:-1]
+            mask_sequence = mask_sequence[0:-1]
+            padded_item.insert(0, voc[START_TOKEN])
+            mask_sequence.insert(0, True)
+        if option == 'decoder_targets':
+            padded_item = padded_item[0:-1]
+            mask_sequence = mask_sequence[0:-1]
+            padded_item.insert(original_len, voc[END_TOKEN])
+            mask_sequence.insert(original_len, True)
+        padded_items.append(padded_item)
+        mask_sequences.append(mask_sequence)
+    return (padded_items, mask_sequences)
+
+def tokens_to_sentences(sequence, idx2word):
+    sentence = ""
+    for token in sequence:
+        word = idx2word[token]
+        if word == '<\s>':
+            return sentence
+        else:
+            sentence += (" " + word)
+    return sentence
 
 def read_conll(fstream):
     """

@@ -7,19 +7,19 @@ import os
 
 from model_nmt import Model
 from data_util import load_and_preprocess_data, UNK_TOKEN, START_TOKEN, END_TOKEN, PAD_TOKEN
-from util import Progbar, minibatches
+from util import Progbar, minibatches, padded_batch, tokens_to_sentences
 from rouge import rouge_n
 from tensorflow.python.layers import core as layers_core
 
 import logging
-from datetime import datetime
+from datetime import datetime, date
 
 logger = logging.getLogger("project.milestone")
 logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 global UNK_IDX, START_IDX, END_IDX, PAD_IDX
-debug = True
+debug = False
 
 class Config:
     """Holds model hyperparams and data information.
@@ -32,37 +32,12 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 100
-    n_epochs = 2
+    n_epochs = 1
     lr = 0.2
     max_grad_norm = 5.
-    cell = 'lstm'
-    clip_gradients = False
+    clip_gradients = True
     encoder_hidden_units = 20
     decoder_hidden_units = 20
-
-def padded_batch(batch, max_length, voc = None, option = None):
-    padded_items, mask_sequences = [], []
-    for item in batch:
-        original_len = len(item)
-        if len(item) >= max_length:
-            padded_item = item[:max_length]
-            mask_sequence = [True]*max_length
-        else:
-            padded_item = item + [voc[PAD_TOKEN]]*(max_length - len(item))
-            mask_sequence = [True]*len(item) + [False]*(max_length - len(item))
-        if option == 'decoder_inputs':
-            padded_item = padded_item[0:-1]
-            mask_sequence = mask_sequence[0:-1]
-            padded_item.insert(0, voc[START_TOKEN])
-            mask_sequence.insert(0, True)
-        if option == 'decoder_targets':
-            padded_item = padded_item[0:-1]
-            mask_sequence = mask_sequence[0:-1]
-            padded_item.insert(original_len, voc[END_TOKEN])
-            mask_sequence.insert(original_len, True)
-        padded_items.append(padded_item)
-        mask_sequences.append(mask_sequence)
-    return (padded_items, mask_sequences)
 
 class SequencePredictor(Model):
 
@@ -108,8 +83,7 @@ class SequencePredictor(Model):
             E = tf.get_variable("E", initializer = self.pretrained_embeddings)
             return E
 
-    def add_embeddings(self, scope):
-    #def add_embeddings(self):
+    def add_embeddings(self):
         """Adds an embedding layer that maps from input tokens (integers) to vectors and then
         concatenates those vectors:
             - Creates a tf.Variable and initializes it with self.pretrained_embeddings.
@@ -120,13 +94,11 @@ class SequencePredictor(Model):
             encoder_inputs_embedded: tf.Tensor of shape (None, embed_size)
             decoder_inputs_embedded: tf.Tensor of shape (None, embed_size)
         """
-        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE) as scope:
-            E = tf.get_variable("E", initializer = self.pretrained_embeddings)
-            #E = self.get_embedding("embedding_scope")
-            encoder_inputs_embedded = tf.nn.embedding_lookup(E, self.encoder_inputs)
-            decoder_inputs_embedded = tf.nn.embedding_lookup(E, self.decoder_inputs)
+        E = tf.get_variable("E", initializer = self.pretrained_embeddings)
+        encoder_inputs_embedded = tf.nn.embedding_lookup(E, self.encoder_inputs)
+        decoder_inputs_embedded = tf.nn.embedding_lookup(E, self.decoder_inputs)
 
-            return encoder_inputs_embedded, decoder_inputs_embedded, E
+        return encoder_inputs_embedded, decoder_inputs_embedded
 
     def add_prediction_op(self):
         """Runs an rnn on the input using TensorFlows's
@@ -144,7 +116,7 @@ class SequencePredictor(Model):
 
         # Encoder
         encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
-        encoder_inputs_embedded, decoder_inputs_embedded, E = self.add_embeddings("emb_scope")
+        encoder_inputs_embedded, decoder_inputs_embedded = self.add_embeddings()
         _, encoder_final_state = tf.nn.dynamic_rnn(encoder_cell,
                                                    encoder_inputs_embedded,
                                                    sequence_length = self.length_encoder_inputs,
@@ -212,7 +184,6 @@ class SequencePredictor(Model):
         """
 
         optimizer = tf.train.AdamOptimizer(learning_rate = self.config.lr)
-        # train_op = optimizer.minimize(loss)
         gradients, variables = zip(*optimizer.compute_gradients(loss))
         if self.config.clip_gradients:
             gradients, _ = tf.clip_by_global_norm(gradients, self.config.max_grad_norm)
@@ -220,6 +191,11 @@ class SequencePredictor(Model):
         train_op = optimizer.apply_gradients(zip(gradients,variables))
 
         return train_op
+    def add_summary_op(self, loss):
+        with tf.name_scope("summaries"):
+            tf.summary.scalar("loss", self.loss)
+            summary_op = tf.summary.merge_all()
+        return summary_op
 
     def train_on_batch(self, sess, inputs_batch, targets_batch):
         """Perform one step of gradient descent on the provided batch of data.
@@ -242,8 +218,8 @@ class SequencePredictor(Model):
                                          length_targets_batch,
                                          decoder_batch_padded,
                                          targets_batch_padded)
-        _, loss, grad_norm = sess.run([self.train_op, self.loss, self.grad_norm], feed_dict=feed)
-        return loss, grad_norm
+        _, loss, grad_norm, summ = sess.run([self.train_op, self.loss, self.grad_norm, self.summary_op], feed_dict=feed)
+        return loss, grad_norm, summ
 
     def predict_on_batch(self, sess, inputs_batch):
         """Make predictions for the provided batch of data
@@ -261,10 +237,10 @@ class SequencePredictor(Model):
         return predictions
 
     def run_epoch(self, sess, saver, train, dev):
-        prog = Progbar(target=1 + int(len(train) / self.config.batch_size))
+        prog = Progbar(target= int(len(train) / self.config.batch_size))
         losses, grad_norms = [], []
         for i, batch in enumerate(minibatches(train, self.config.batch_size)):
-            loss, grad_norm = self.train_on_batch(sess, *batch)
+            loss, grad_norm, summ = self.train_on_batch(sess, *batch)
             losses.append(loss)
             grad_norms.append(grad_norm)
             prog.update(i + 1, [("train loss", loss)])
@@ -274,24 +250,26 @@ class SequencePredictor(Model):
         references = []
         for batch in minibatches(dev, self.config.batch_size):
             inputs_batch, targets_batch = batch
-            targets_padded, _ = padded_batch(targets_batch, self.config.max_length_y, self.config.voc, option = 'targets_batch')
             prediction = list(self.predict_on_batch(sess, inputs_batch))
-            print(prediction[0])
-            print(targets_padded[0])
-            predictions.append(prediction)
-            references.append(targets_padded)
+            predictions += prediction
+            references += list(targets_batch)
+
+        predictions = [tokens_to_sentences(pred, self.config.idx2word) for pred in predictions]
+        references  = [tokens_to_sentences(ref, self.config.idx2word) for ref in references]
 
         f1, _, _ = rouge_n(predictions, references)
-        print(f1)
-        print("- dev rouge f1: {}".format(f1 * 100.0))
-        return losses, grad_norms, predictions, f1
+        print("- dev rouge f1: {}".format(f1))
+        return losses, grad_norms, summ, predictions, f1
 
     def fit(self, sess, saver, train, dev):
         losses, grad_norms, predictions = [], [], []
-        best_dev_ROUGE = 0.0
+        best_dev_ROUGE = -1.0
         for epoch in range(self.config.n_epochs):
             logger.info("Epoch %d out of %d", epoch + 1, self.config.n_epochs)
-            loss, grad_norm, preds, f1 = self.run_epoch(sess, saver, train, dev)
+            loss, grad_norm, summ, preds, f1 = self.run_epoch(sess, saver, train, dev)
+            if writer:
+                print("Saving graph in ./data/graph/loss.summary")
+                writer.add_summary(summ, global_step = epoch)
             if f1 > best_dev_ROUGE:
                 best_dev_ROUGE = f1
                 if saver:
@@ -331,6 +309,7 @@ if __name__ == '__main__':
     config.max_length_x = 250
     config.max_length_y = 11
     config.voc = voc
+    config.idx2word = dict([[v,k] for k,v in voc.items()])
 
     UNK_IDX = voc[UNK_TOKEN]
     START_IDX = voc[START_TOKEN]
@@ -340,6 +319,10 @@ if __name__ == '__main__':
     # Create directory for saver
     if not os.path.exists('./data/weights/'):
         os.makedirs('./data/weights/')
+    if not os.path.exists('./data/graphs/'):
+        os.makedirs('./data/graphs/')
+    if not os.path.exists('./data/predictions/'):
+        os.makedirs('./data/predictions/')
 
     # Build model
     with tf.Graph().as_default() as graph:
@@ -348,6 +331,7 @@ if __name__ == '__main__':
         model = SequencePredictor(config, E)
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
+        writer = tf.summary.FileWriter('./data/graphs', tf.get_default_graph())
         print("Took {} seconds to build model".format(time.time() - start))
 
     graph.finalize()
@@ -357,19 +341,34 @@ if __name__ == '__main__':
         print(80 * "=")
         print("TRAINING")
         print(80 * "=")
-        losses, grad_norms, predictions = model.fit(sess, saver, test, test)
-        #losses, grad_norms, predictions = model.fit(sess, saver, train, dev)
+        losses, grad_norms, predictions = model.fit(sess, saver, train, dev)
         if not debug:
             print(80 * "=")
             print("TESTING")
             print(80 * "=")
             print("Restoring the best model weights found on the dev set")
-            saver.restore(session, './data/weights/model.weights')
+            saver.restore(sess, './data/weights/model.weights')
             print("Final evaluation on test set")
-            #UAS, dependencies = parser.parse(test_set)
-            #print("- test UAS: {:.2f}".format(UAS * 100.0))
-            #print("Writing predictions")
-            #with open('q2_test.predicted.pkl', 'w') as f:
-            #    cPickle.dump(dependencies, f, -1)
+            predictions = []
+            references = []
+            for batch in minibatches(test, model.config.batch_size):
+                inputs_batch, targets_batch = batch
+                prediction = list(model.predict_on_batch(sess, inputs_batch))
+                predictions += prediction
+                references += list(targets_batch)
+
+            predictions = [tokens_to_sentences(pred, model.config.idx2word) for pred in predictions]
+            references  = [tokens_to_sentences(ref, model.config.idx2word) for ref in references]
+
+            f1, _, _ = rouge_n(predictions, references)
+            print("- test ROUGE: {}".format(f1))
+            print("Writing predictions")
+            fname = 'predictions' + str(date.today()) + '.txt'
+            with open(fname, 'w') as f:
+                for pred, ref in zip(predictions, references):
+                    f.write(pred + '\t' + ref)
+                    f.write('\n')
             print("Done!")
+
+    writer.close()
 
