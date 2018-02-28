@@ -1,0 +1,23 @@
+\begin{thebibliography}{1}
+
+\bibitem{rnnlg}
+Cambridge Dialogue~Systems Group.
+\newblock Rnnlg.
+\newblock \url{https://github.com/shawnwun/RNNLG}, 2017.
+
+\bibitem{namas}
+Facebook~AI Group.
+\newblock Namas.
+\newblock \url{https://github.com/facebookarchive/NAMAS}, 2018.
+
+\bibitem{luong17}
+Minh{-}Thang Luong, Eugene Brevdo, and Rui Zhao.
+\newblock Neural machine translation (seq2seq) tutorial.
+\newblock {\em https://github.com/tensorflow/nmt}, 2017.
+
+\bibitem{lmthang}
+Thang Luong.
+\newblock Thesis on neural machine translation.
+\newblock \url{https://github.com/lmthang/thesis}, 2017.
+
+\end{thebibliography}
