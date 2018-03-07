@@ -227,11 +227,11 @@ class SequencePredictor(Model):
         Returns:
             predictions: np.ndarray of shape (n_samples, max_length_y)
         """
-        inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc)
+        inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc, option='encoder_inputs')
         length_inputs_batch = np.asarray([min(config.max_length_x,len(item)) for item in inputs_batch])
         #feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         if targets_batch is None:
-            feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch, option='encoder_inputs')
+            feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         else:
             decoder_batch_padded, _ = padded_batch(targets_batch, self.config.max_length_y,
                                                    self.config.voc, option = 'decoder_inputs')
@@ -284,7 +284,10 @@ class SequencePredictor(Model):
         best_dev_loss = np.inf
         for epoch in range(self.config.n_epochs):
             logger.info("Epoch %d out of %d", epoch + 1, self.config.n_epochs)
-            loss, grad_norm, summ, preds, f1, dev_loss = self.run_epoch(sess, saver, train, dev)
+            loss, grad_norm, summ, preds, f1, dev_loss = self.run_epoch(sess,
+                                                                        saver,
+                                                                        train,
+                                                                        dev)
             if writer:
                 print("Saving graph in ./data/graph/loss.summary")
                 writer.add_summary(summ, global_step = epoch)
