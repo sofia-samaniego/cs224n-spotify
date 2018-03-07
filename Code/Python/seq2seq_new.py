@@ -11,6 +11,7 @@ from util import Progbar, minibatches, padded_batch, tokens_to_sentences
 from rouge import rouge_n
 from tensorflow.python.layers import core as layers_core
 
+import matplotlib.pyplot as plt
 import logging
 from datetime import datetime, date
 
@@ -32,7 +33,7 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 64
-    n_epochs = 50
+    n_epochs = 3
     lr = 0.001
     max_grad_norm = 5.
     clip_gradients = True
@@ -196,11 +197,11 @@ class SequencePredictor(Model):
         Perform one step of gradient descent on the provided batch of data.
         This version also returns the norm of gradients.
         """
-        inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc)
+        inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc, option = 'encoder_inputs')
         length_inputs_batch = np.asarray([min(config.max_length_x,len(item)) for item in inputs_batch])
 
         if targets_batch is None:
-            feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch, option='encoder_inputs')
+            feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         else:
             decoder_batch_padded, _ = padded_batch(targets_batch, self.config.max_length_y,
                                                    self.config.voc, option = 'decoder_inputs')
@@ -243,7 +244,6 @@ class SequencePredictor(Model):
                                          decoder_batch_padded,
                                          targets_batch_padded)
         predictions, dev_loss = sess.run([self.infer_pred, self.dev_loss], feed_dict=feed)
-        print(np.argmax(predictions,2))
         return np.argmax(predictions,2), dev_loss
         #return predictions
 
@@ -260,7 +260,8 @@ class SequencePredictor(Model):
         predictions = []
         references = []
         dev_losses = []
-        for batch in minibatches(dev, self.config.batch_size):
+        prog = Progbar(target= int(len(dev) / self.config.batch_size))
+        for i, batch in enumerate(minibatches(dev, self.config.batch_size)):
             inputs_batch, targets_batch = batch
             # prediction = list(self.predict_on_batch(sess, inputs_batch))
             prediction, dev_loss = self.predict_on_batch(sess, *batch)
@@ -268,6 +269,7 @@ class SequencePredictor(Model):
             dev_losses.append(dev_loss)
             predictions += prediction
             references += list(targets_batch)
+            prog.update(i + 1, [("dev loss", dev_loss)])
 
         predictions = [tokens_to_sentences(pred, self.config.idx2word) for pred in predictions]
         references  = [tokens_to_sentences(ref, self.config.idx2word) for ref in references]
@@ -278,17 +280,20 @@ class SequencePredictor(Model):
 
     def fit(self, sess, saver, train, dev):
         losses, grad_norms, predictions, dev_losses = [], [], [], []
-        best_dev_ROUGE = -1.0
+        # best_dev_ROUGE = -1.0
+        best_dev_loss = np.inf
         for epoch in range(self.config.n_epochs):
             logger.info("Epoch %d out of %d", epoch + 1, self.config.n_epochs)
             loss, grad_norm, summ, preds, f1, dev_loss = self.run_epoch(sess, saver, train, dev)
             if writer:
                 print("Saving graph in ./data/graph/loss.summary")
                 writer.add_summary(summ, global_step = epoch)
-            if f1 > best_dev_ROUGE:
-                best_dev_ROUGE = f1
+            # if f1 > best_dev_ROUGE:
+            if dev_loss[-1] < best_dev_loss:
+                best_dev_loss = dev_loss[-1]
+                # best_dev_ROUGE = f1
                 if saver:
-                    print("New best dev ROUGE! Saving model in ./data/weights/model.weights")
+                    print("New best dev loss! Saving model in ./data/weights/model.weights")
                     saver.save(sess, './data/weights/model.weights')
             losses.append(loss)
             dev_losses.append(dev_loss)
@@ -306,6 +311,18 @@ class SequencePredictor(Model):
         self.length_decoder_inputs = None
         self.grad_norm = None
         self.build()
+
+def make_losses_plot(train_loss, dev_loss, fname):
+    plt.clf()
+    plt.title('Training vs. Dev Loss')
+
+    plt.plot(np.arange(len(train_loss)), train_loss, color = 'coral', label="train")
+    plt.plot(np.arange(len(dev_loss)), dev_loss, color = 'mediumvioletred', label="dev")
+    plt.ylabel("iteration")
+    plt.xlabel("loss")
+    plt.legend()
+    output_path = "{}.png".format(fname)
+    plt.savefig(output_path)
 
 if __name__ == '__main__':
 
@@ -326,7 +343,7 @@ if __name__ == '__main__':
     config.voc_size = len(voc)
     config.embedding_size = E.shape[1]
     config.max_length_x = 200
-    config.max_length_y = 5
+    config.max_length_y = 3
     config.voc = voc
     config.idx2word = dict([[v,k] for k,v in voc.items()])
 
@@ -360,7 +377,7 @@ if __name__ == '__main__':
         print(80 * "=")
         print("TRAINING")
         print(80 * "=")
-        losses, grad_norms, predictions = model.fit(sess, saver, train[:5000], dev[:500])
+        losses, grad_norms, predictions, dev_losses = model.fit(sess, saver, train[:5000], dev[:500])
         if not debug:
             print(80 * "=")
             print("TESTING")
@@ -388,6 +405,9 @@ if __name__ == '__main__':
                     f.write(pred + '\t' + ref)
                     f.write('\n')
             print("Done!")
+
+    plot_fname = 'loss' + str(date.today())
+    make_losses_plot(train_loss, dev_loss, plot_fname)
 
     writer.close()
 
