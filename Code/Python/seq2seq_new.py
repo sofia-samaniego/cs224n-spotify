@@ -377,7 +377,7 @@ if __name__ == '__main__':
         print(80 * "=")
         print("TRAINING")
         print(80 * "=")
-        losses, grad_norms, predictions, dev_losses = model.fit(sess, saver, train[:5000], dev[:500])
+        losses, grad_norms, predictions, dev_losses = model.fit(sess, saver, train, dev)
         if not debug:
             print(80 * "=")
             print("TESTING")
