@@ -24,7 +24,6 @@ logger = logging.getLogger("project")
 logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-
 def padded_batch(batch, max_length, voc = None, option = None):
     padded_items, mask_sequences = [], []
     for item in batch:
@@ -33,8 +32,12 @@ def padded_batch(batch, max_length, voc = None, option = None):
             padded_item = item[:max_length]
             mask_sequence = [True]*max_length
         else:
-            padded_item = item + [voc[PAD_TOKEN]]*(max_length - len(item))
-            mask_sequence = [True]*len(item) + [False]*(max_length - len(item))
+            if option == 'encoder_inputs':
+                padded_item = [voc[PAD_TOKEN]]*(max_length - len(item)) + item
+                mask_sequence =  [False]*(max_length - len(item)) + [True]*len(item)
+            else:
+                padded_item = item + [voc[PAD_TOKEN]]*(max_length - len(item))
+                mask_sequence = [True]*len(item) + [False]*(max_length - len(item))
         if option == 'decoder_inputs':
             padded_item = padded_item[0:-1]
             mask_sequence = mask_sequence[0:-1]
@@ -52,7 +55,7 @@ def padded_batch(batch, max_length, voc = None, option = None):
 def tokens_to_sentences(sequence, idx2word):
     sentence = ""
     for token in sequence:
-        word = idx2word[token]
+        word = idx2word[int(token)]
         if word == '<\s>':
             return sentence
         else:
