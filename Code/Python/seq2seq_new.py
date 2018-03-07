@@ -33,8 +33,8 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 64
-    n_epochs = 3
-    lr = 0.001
+    n_epochs = 30
+    lr = 0.005
     max_grad_norm = 5.
     clip_gradients = True
     encoder_hidden_units = 256
@@ -225,11 +225,10 @@ class SequencePredictor(Model):
             sess: tf.Session()
             input_batch: np.ndarray of shape (n_samples, #TODO)
         Returns:
-            predictions: np.ndarray of shape (n_samples, max_length_y)
+        e   predictions: np.ndarray of shape (n_samples, max_length_y)
         """
         inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc, option='encoder_inputs')
         length_inputs_batch = np.asarray([min(config.max_length_x,len(item)) for item in inputs_batch])
-        #feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         if targets_batch is None:
             feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         else:
@@ -260,7 +259,7 @@ class SequencePredictor(Model):
         predictions = []
         references = []
         dev_losses = []
-        prog = Progbar(target= int(len(dev) / self.config.batch_size))
+        prog_dev = Progbar(target= int(len(dev) / self.config.batch_size))
         for i, batch in enumerate(minibatches(dev, self.config.batch_size)):
             inputs_batch, targets_batch = batch
             # prediction = list(self.predict_on_batch(sess, inputs_batch))
@@ -269,7 +268,7 @@ class SequencePredictor(Model):
             dev_losses.append(dev_loss)
             predictions += prediction
             references += list(targets_batch)
-            prog.update(i + 1, [("dev loss", dev_loss)])
+            prog_dev.update(i + 1, [("dev loss", dev_loss)])
 
         predictions = [tokens_to_sentences(pred, self.config.idx2word) for pred in predictions]
         references  = [tokens_to_sentences(ref, self.config.idx2word) for ref in references]
@@ -380,7 +379,10 @@ if __name__ == '__main__':
         print(80 * "=")
         print("TRAINING")
         print(80 * "=")
-        losses, grad_norms, predictions, dev_losses = model.fit(sess, saver, train, dev)
+        losses, grad_norms, predictions, dev_losses = model.fit(sess,
+                                                                saver,
+                                                                train,
+                                                                dev)
         if not debug:
             print(80 * "=")
             print("TESTING")
@@ -390,17 +392,22 @@ if __name__ == '__main__':
             print("Final evaluation on test set")
             predictions = []
             references = []
+            test_losses = []
             for batch in minibatches(test, model.config.batch_size):
                 inputs_batch, targets_batch = batch
-                prediction = list(model.predict_on_batch(sess, inputs_batch))
+                #prediction = list(model.predict_on_batch(sess, inputs_batch))
+                prediction, test_loss = model.predict_on_batch(sess, *batch)
+                prediction = list(prediction)
                 predictions += prediction
                 references += list(targets_batch)
+                test_losses.append(test_loss)
 
             predictions = [tokens_to_sentences(pred, model.config.idx2word) for pred in predictions]
             references  = [tokens_to_sentences(ref, model.config.idx2word) for ref in references]
 
             f1, _, _ = rouge_n(predictions, references)
             print("- test ROUGE: {}".format(f1))
+            print("- test loss: {}".format(test_losses[-1]))
             print("Writing predictions")
             fname = 'predictions' + str(date.today()) + '.txt'
             with open(fname, 'w') as f:
