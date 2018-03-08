@@ -20,7 +20,7 @@ logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 global UNK_IDX, START_IDX, END_IDX, PAD_IDX
-debug = False
+debug = True
 
 class Config:
     """Holds model hyperparams and data information.
@@ -117,8 +117,8 @@ class SequencePredictor(Model):
         encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
 
         encoder_inputs_embedded, decoder_inputs_embedded = self.add_embeddings()
-        #initial_state = encoder_cell.zero_state(tf.shape(encoder_inputs_embedded)[0],
-        #                                        dtype = tf.float32)
+        initial_state = encoder_cell.zero_state(tf.shape(encoder_inputs_embedded)[0],
+                                                dtype = tf.float32)
         _, encoder_final_state = tf.nn.dynamic_rnn(encoder_cell,
                                                    encoder_inputs_embedded,
         #                                           initial_state = initial_state,
@@ -183,7 +183,7 @@ class SequencePredictor(Model):
         mask = tf.slice(self.mask_placeholder, begin = [0,0], size = [-1, current_ts])
         loss2 = tf.reduce_sum(tf.boolean_mask(cross_ent, mask))/tf.to_float(self.config.batch_size)
 
-        return loss2
+        return loss
 
     def add_training_op(self, loss):
         """
@@ -235,7 +235,7 @@ class SequencePredictor(Model):
                                                                self.config.max_length_y,
                                                                self.config.voc,
                                                                option = 'decoder_targets')
-            length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)) for item in targets_batch])
+            length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)+1) for item in targets_batch])
             feed = self.create_feed_dict(inputs_batch_padded,
                                          length_inputs_batch,
                                          mask_batch,
@@ -244,6 +244,11 @@ class SequencePredictor(Model):
                                          targets_batch_padded)
 
         _, loss, grad_norm, summ = sess.run([self.train_op, self.loss, self.grad_norm, self.summary_op], feed_dict=feed)
+        preds = np.asarray(sess.run([self.train_pred], feed_dict = feed))
+        preds = np.argmax(preds[0],2)
+        print("\n")
+        print(tokens_to_sentences(targets_batch[0], self.config.idx2word))
+        print(tokens_to_sentences(preds[0], self.config.idx2word))
         return loss, grad_norm, summ
 
     def predict_on_batch(self, sess, inputs_batch, targets_batch = None):
@@ -281,7 +286,10 @@ class SequencePredictor(Model):
                                          decoder_batch_padded,
                                          targets_batch_padded)
         predictions, dev_loss = sess.run([self.infer_pred, self.dev_loss], feed_dict=feed)
-        return np.argmax(predictions,2), dev_loss
+        preds = np.argmax(predictions,2)
+        print(tokens_to_sentences(targets_batch[0], self.config.idx2word))
+        print(tokens_to_sentences(preds[0], self.config.idx2word))
+        return preds, dev_loss
 
     def run_epoch(self, sess, saver, train, dev):
         prog = Progbar(target= int(len(train) / self.config.batch_size))
