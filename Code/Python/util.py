@@ -24,6 +24,34 @@ logger = logging.getLogger("project")
 logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
+def padded_batch_lr(batch, max_length, voc, option = None, side = 'right'):
+    padded_items, mask_sequences = [], []
+    for item in batch:
+        original_len = len(item)
+        if len(item) >= max_length:
+            padded_item = item[:max_length]
+            mask_sequence = [True]*max_length
+        else:
+            if side == 'left':
+                padded_item = [voc[PAD_TOKEN]]*(max_length - len(item)) + item
+                mask_sequence =  [False]*(max_length - len(item)) + [True]*len(item)
+            elif side == 'right':
+                padded_item = item + [voc[END_TOKEN]]*(max_length - len(item))
+                mask_sequence = [True]*len(item) + [False]*(max_length - len(item))
+        if option == 'decoder_inputs':
+            padded_item = padded_item[0:-1]
+            mask_sequence = mask_sequence[0:-1]
+            padded_item.insert(0, voc[START_TOKEN])
+            mask_sequence.insert(0, False)
+        if option == 'decoder_targets':
+            padded_item = padded_item[0:-1]
+            mask_sequence = mask_sequence[0:-1]
+            padded_item.insert(original_len, voc[END_TOKEN])
+            mask_sequence.insert(original_len, False)
+        padded_items.append(padded_item)
+        mask_sequences.append(mask_sequence)
+    return (padded_items, mask_sequences)
+
 def padded_batch(batch, max_length, voc = None, option = None):
     padded_items, mask_sequences = [], []
     for item in batch:

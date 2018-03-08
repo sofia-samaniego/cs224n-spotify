@@ -7,7 +7,7 @@ import os
 
 from model_nmt import Model
 from data_util import load_data, load_and_preprocess_data, UNK_TOKEN, START_TOKEN, END_TOKEN, PAD_TOKEN
-from util import Progbar, minibatches, padded_batch, tokens_to_sentences
+from util import Progbar, minibatches, padded_batch, tokens_to_sentences, padded_batch_lr
 from rouge import rouge_n
 from tensorflow.python.layers import core as layers_core
 
@@ -53,10 +53,15 @@ class SequencePredictor(Model):
         self.decoder_inputs  = tf.placeholder(tf.int32, shape=(None, self.config.max_length_y),
                                                         name = "decoder_inputs")
 
-        self.length_encoder_inputs = tf.placeholder(tf.int32, shape = (None), name = "length_encoder_inputs")
-        self.length_decoder_inputs = tf.placeholder(tf.int32, shape = (None), name = "length_decoder_inputs")
+        self.length_encoder_inputs = tf.placeholder(tf.int32, shape = (None),
+                                                              name = "length_encoder_inputs")
+        self.length_decoder_inputs = tf.placeholder(tf.int32, shape = (None),
+                                                              name = "length_decoder_inputs")
+        self.mask_placeholder = tf.placeholder(tf.bool, shape = (None, self.config.max_length_y),
+                                                        name = "mask_placeholder")
 
-    def create_feed_dict(self, inputs_batch, length_encoder_batch, length_decoder_batch = None,
+    def create_feed_dict(self, inputs_batch, length_encoder_batch, mask_batch = None,
+                                                                   length_decoder_batch = None,
                                                                    decoder_inputs_batch = None,
                                                                    targets_batch = None):
         """
@@ -70,11 +75,13 @@ class SequencePredictor(Model):
                             self.decoder_targets: targets_batch,
                             self.length_encoder_inputs: length_encoder_batch,
                             self.length_decoder_inputs: length_decoder_batch,
+                            self.mask_placeholder : mask_batch
                         }
         else:
             feed_dict = {
                             self.encoder_inputs: inputs_batch,
                             self.length_encoder_inputs: length_encoder_batch,
+                            self.mask_placeholder : mask_batch
                         }
 
         return feed_dict
@@ -108,9 +115,13 @@ class SequencePredictor(Model):
 
         # Encoder
         encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
+
         encoder_inputs_embedded, decoder_inputs_embedded = self.add_embeddings()
+        #initial_state = encoder_cell.zero_state(tf.shape(encoder_inputs_embedded)[0],
+        #                                        dtype = tf.float32)
         _, encoder_final_state = tf.nn.dynamic_rnn(encoder_cell,
                                                    encoder_inputs_embedded,
+        #                                           initial_state = initial_state,
                                                    sequence_length = self.length_encoder_inputs,
                                                    dtype = tf.float32)
 
@@ -140,6 +151,7 @@ class SequencePredictor(Model):
 
         train_outputs = decode(train_helper, 'decode')
         pred_outputs = decode(pred_helper, 'decode')
+
         # pred_outputs = tf.argmax(decode(pred_helper, 'decode'),2)
 
         return train_outputs, pred_outputs
@@ -154,14 +166,24 @@ class SequencePredictor(Model):
             loss: A 0-d tensor (scalar)
         """
         y = self.decoder_targets
+        current_ts = tf.to_int32(tf.minimum(tf.shape(y)[1], tf.shape(preds)[1]))
+        y = tf.slice(y, begin=[0, 0], size=[-1, current_ts])
+        target_weights = tf.sequence_mask(lengths=self.length_decoder_inputs,
+                                          maxlen=current_ts,
+                                          dtype=preds.dtype)
+
+        preds = tf.slice(preds, begin=[0,0,0], size=[-1, current_ts, -1])
+
         cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels = y,
                                                                    logits = preds)
-        target_weights = tf.sequence_mask(self.length_decoder_inputs,
-                                          self.config.max_length_y,
-                                          dtype = preds.dtype)
+        # target_weights = tf.sequence_mask(self.length_decoder_inputs,
+                                          # self.config.max_length_y,
+                                          # dtype = preds.dtype)
         loss = tf.reduce_sum(cross_ent*target_weights)/tf.to_float(self.config.batch_size)
+        mask = tf.slice(self.mask_placeholder, begin = [0,0], size = [-1, current_ts])
+        loss2 = tf.reduce_sum(tf.boolean_mask(cross_ent, mask))/tf.to_float(self.config.batch_size)
 
-        return loss
+        return loss2
 
     def add_training_op(self, loss):
         """
@@ -197,23 +219,30 @@ class SequencePredictor(Model):
         Perform one step of gradient descent on the provided batch of data.
         This version also returns the norm of gradients.
         """
-        inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc, option = 'encoder_inputs')
-        length_inputs_batch = np.asarray([min(config.max_length_x,len(item)) for item in inputs_batch])
+        inputs_batch_padded, _ = padded_batch_lr(inputs_batch,
+                                                 self.config.max_length_x,
+                                                 self.config.voc)
+        length_inputs_batch = np.asarray([min(self.config.max_length_x,len(item)) for item in inputs_batch])
 
         if targets_batch is None:
             feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         else:
-            decoder_batch_padded, _ = padded_batch(targets_batch, self.config.max_length_y,
-                                                   self.config.voc, option = 'decoder_inputs')
-            targets_batch_padded, _ = padded_batch(targets_batch, self.config.max_length_y,
-                                                   self.config.voc, option = 'decoder_targets')
-            # length_targets_batch = np.asarray([min(config.max_length_y, len(item)+1) for item in targets_batch])
-            length_targets_batch = np.asarray([config.max_length_y for item in targets_batch])
+            decoder_batch_padded, _ = padded_batch_lr(targets_batch,
+                                                     self.config.max_length_y,
+                                                     self.config.voc,
+                                                     option = 'decoder_inputs')
+            targets_batch_padded, mask_batch = padded_batch_lr(targets_batch,
+                                                               self.config.max_length_y,
+                                                               self.config.voc,
+                                                               option = 'decoder_targets')
+            length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)) for item in targets_batch])
             feed = self.create_feed_dict(inputs_batch_padded,
                                          length_inputs_batch,
-                                         length_targets_batch,
+                                         mask_batch,
+                                         length_decoder_batch,
                                          decoder_batch_padded,
                                          targets_batch_padded)
+
         _, loss, grad_norm, summ = sess.run([self.train_op, self.loss, self.grad_norm, self.summary_op], feed_dict=feed)
         return loss, grad_norm, summ
 
@@ -227,24 +256,32 @@ class SequencePredictor(Model):
         Returns:
         e   predictions: np.ndarray of shape (n_samples, max_length_y)
         """
-        inputs_batch_padded, _ = padded_batch(inputs_batch, self.config.max_length_x, self.config.voc, option='encoder_inputs')
-        length_inputs_batch = np.asarray([min(config.max_length_x,len(item)) for item in inputs_batch])
+        inputs_batch_padded, _ = padded_batch_lr(inputs_batch,
+                                                 self.config.max_length_x,
+                                                 self.config.voc)
+        length_inputs_batch = np.asarray([min(self.config.max_length_x,len(item)) for item in inputs_batch])
         if targets_batch is None:
             feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         else:
-            decoder_batch_padded, _ = padded_batch(targets_batch, self.config.max_length_y,
-                                                   self.config.voc, option = 'decoder_inputs')
-            targets_batch_padded, _ = padded_batch(targets_batch, self.config.max_length_y,
-                                                   self.config.voc, option = 'decoder_targets')
-            length_targets_batch = np.asarray([config.max_length_y for item in targets_batch])
+            decoder_batch_padded, _ = padded_batch_lr(targets_batch,
+                                                      self.config.max_length_y,
+                                                      self.config.voc,
+                                                      option = 'decoder_inputs')
+            targets_batch_padded, mask_batch = padded_batch_lr(targets_batch,
+                                                               self.config.max_length_y,
+                                                               self.config.voc,
+                                                               option = 'decoder_targets')
+
+            #length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)) for item in targets_batch])
+            length_decoder_batch = np.asarray([self.config.max_length_y for item in targets_batch])
             feed = self.create_feed_dict(inputs_batch_padded,
                                          length_inputs_batch,
-                                         length_targets_batch,
+                                         mask_batch,
+                                         length_decoder_batch,
                                          decoder_batch_padded,
                                          targets_batch_padded)
         predictions, dev_loss = sess.run([self.infer_pred, self.dev_loss], feed_dict=feed)
         return np.argmax(predictions,2), dev_loss
-        #return predictions
 
     def run_epoch(self, sess, saver, train, dev):
         prog = Progbar(target= int(len(train) / self.config.batch_size))
@@ -312,6 +349,7 @@ class SequencePredictor(Model):
         self.length_encoder_inputs = None
         self.length_decoder_inputs = None
         self.grad_norm = None
+        self.mask_placeholder = None
         self.build()
 
 def make_losses_plot(train_loss, dev_loss, fname):
@@ -331,10 +369,17 @@ if __name__ == '__main__':
     # Get data and embeddings
     start = time.time()
     print("Loading data...")
-    train, dev, test, E, voc, max_x, max_y = load_data('train_all.txt',
-                                                       'dev_all.txt',
-                                                       'test_all.txt',
-                                                       'max_lengths_all.txt')
+    if debug:
+        train, dev, test, E, voc, max_x, max_y = load_data('train_all_small.txt',
+                                                           'dev_all_small.txt',
+                                                           'test_all.txt',
+                                                           'max_lengths_all.txt')
+    else:
+        train, dev, test, E, voc, max_x, max_y = load_data('train_all.txt',
+                                                           'dev_all.txt',
+                                                           'test_all.txt',
+                                                           'max_lengths_all.txt')
+
     print("Took {} seconds to load data".format(time.time() - start))
 
     # Set up some parameters.
@@ -345,7 +390,7 @@ if __name__ == '__main__':
     config.voc_size = len(voc)
     config.embedding_size = E.shape[1]
     config.max_length_x = 200
-    config.max_length_y = 3
+    config.max_length_y = 6
     config.voc = voc
     config.idx2word = dict([[v,k] for k,v in voc.items()])
 
@@ -417,7 +462,9 @@ if __name__ == '__main__':
             print("Done!")
 
     plot_fname = 'loss' + str(date.today())
-    make_losses_plot(train_loss, dev_loss, plot_fname)
+    plosses = [np.mean(np.array(item)) for item in losses]
+    pdev_losses = [np.mean(np.array(item)) for item in dev_losses]
+    make_losses_plot(plosses, pdev_losses, plot_fname)
 
     writer.close()
 
