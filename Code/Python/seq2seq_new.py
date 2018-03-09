@@ -21,7 +21,7 @@ logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 global UNK_IDX, START_IDX, END_IDX, PAD_IDX
-debug = True
+debug = False
 
 class Config:
     """Holds model hyperparams and data information.
@@ -34,7 +34,7 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 64
-    n_epochs = 2
+    n_epochs = 20
     lr = 0.001
     max_grad_norm = 5.
     clip_gradients = True
