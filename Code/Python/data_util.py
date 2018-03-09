@@ -32,6 +32,8 @@ MPD_PATH = '/Users/sofiasf/Data224n/SpotifyPlaylists/data/'
 MPD_DEBUG_PATH = '/Users/sofiasf/Data224n/SpotifyPlaylists/data_debug/'
 GLOVE_PATH = '/Users/sofiasf/Data224n/Glove/'
 DATA_PATH = '/Users/sofiasf/Documents/Stanford/Win18/cs224n/cs224n-spotify/Data'
+#GLOVE_PATH = '/home/sofiasf/cs224n-spotify/Data'
+#DATA_PATH = '/home/sofiasf/cs224n-spotify/Data'
 
 def process_mpd(path):
     data = []
@@ -126,9 +128,10 @@ def data_to_file(data, name):
 def load_and_preprocess_data(output = 'tokens_all.txt', debug = False):
     fname = os.path.join(DATA_PATH, output)
     if not os.path.isfile(fname):
-        print('Reading from {} ...'.format(fname))
         dir_mpd = MPD_DEBUG_PATH if debug else MPD_PATH
+        print('Reading from {} ...'.format(dir_mpd))
         data, max_x, max_y = process_mpd(dir_mpd)
+        print('Writing into {} ...'.format(fname))
         with open(fname, 'w') as f:
             for tracks, title in data:
                 for token in title:
@@ -159,9 +162,14 @@ def load_and_preprocess_data(output = 'tokens_all.txt', debug = False):
     vocabulary, E = create_GloVe_embedding(GLOVE_PATH)
     data_idx = token_to_idx(data, vocabulary)
 
+    # Filter out data with <unk> in playlist title
+    filtered_data = []
+    for x, y in data_idx:
+        if vocabulary[UNK_TOKEN] not in y:
+            filtered_data.append((x,y))
 
     # Split into train, dev, test
-    N = len(datai_idx)
+    N = len(data_idx)
 
     num_dev = int(N*VALIDATION_SPLIT)
     num_test = int(N*TEST_SPLIT)
@@ -182,18 +190,21 @@ def load_and_preprocess_data(output = 'tokens_all.txt', debug = False):
     dev_raw   = data[num_train:-num_test]
     test_raw  = data[-num_test:]
 
-    data_to_file(train, 'train_all.txt')
-    data_to_file(dev, 'dev_all.txt')
-    data_to_file(test, 'test_all.txt')
+    data_to_file(train, 'train_eow.txt')
+    data_to_file(dev, 'dev_eow.txt')
+    data_to_file(test, 'test_eow.txt')
 
-    data_to_file(train_raw, 'train_all_raw.txt')
-    data_to_file(dev_raw, 'dev_all_raw.txt')
-    data_to_file(test_raw, 'test_all_raw.txt')
+    data_to_file(train_raw, 'train_eow_raw.txt')
+    data_to_file(dev_raw, 'dev_eow_raw.txt')
+    data_to_file(test_raw, 'test_eow_raw.txt')
 
-    data_to_file([([max_x], [max_y])], 'max_lengths_all.txt')
+    data_to_file([([max_x], [max_y])], 'max_lengths_eow.txt')
     return train, dev, test, train_raw, dev_raw, test_raw, max_x, max_y, E, vocabulary
 
-def load_data(train_name, dev_name, test_name, max_lengths):
+def load_data(train_name, dev_name, test_name, max_lengths = None):
+    max_x = None
+    max_y = None
+
     vocabulary, E = create_GloVe_embedding(GLOVE_PATH)
 
     # Load train
@@ -232,14 +243,15 @@ def load_data(train_name, dev_name, test_name, max_lengths):
     print("Dev size: {}".format(len(dev)))
     print("Test size: {}".format(len(test)))
 
-    max_lengths_path = os.path.join(DATA_PATH, max_lengths)
-    with open(max_lengths_path,'r') as f:
-        for line in f:
-            max_y, max_x = line.strip().split('\t')
-    max_x = int(max_x)
-    max_y = int(max_y)
-    print("Max playlist name: {}".format(max_y))
-    print("Max number of words in tracklist: {}".format(max_x))
+    if max_lengths is not None:
+        max_lengths_path = os.path.join(DATA_PATH, max_lengths)
+        with open(max_lengths_path,'r') as f:
+            for line in f:
+                max_y, max_x = line.strip().split('\t')
+        max_x = int(max_x)
+        max_y = int(max_y)
+        print("Max playlist name: {}".format(max_y))
+        print("Max number of words in tracklist: {}".format(max_x))
 
     return train, dev, test, E, vocabulary, max_x, max_y
 
