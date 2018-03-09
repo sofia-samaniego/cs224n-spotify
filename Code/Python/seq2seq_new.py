@@ -21,7 +21,7 @@ logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 global UNK_IDX, START_IDX, END_IDX, PAD_IDX
-debug = False
+debug = True
 
 class Config:
     """Holds model hyperparams and data information.
@@ -34,7 +34,7 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 64
-    n_epochs = 20
+    n_epochs = 2
     lr = 0.001
     max_grad_norm = 5.
     clip_gradients = True
@@ -396,7 +396,7 @@ def make_losses_plot(train_loss, dev_loss, fname, title, ylab):
     plt.plot(np.arange(len(train_loss)), train_loss, color = 'coral', label="train")
     plt.plot(np.arange(len(dev_loss)), dev_loss, color = 'mediumvioletred', label="dev")
     plt.ylabel(ylab)
-    plt.xlabel(iteration)
+    plt.xlabel('iteration')
     plt.legend()
     output_path = "{}.png".format(fname)
     plt.savefig(output_path)
@@ -509,7 +509,8 @@ if __name__ == '__main__':
     fname = 'losses' + str(date.today()) + '.txt'
     with open(fname, 'w') as f:
         for tr_loss, dev_loss in zip(plosses, pdev_losses):
-            f.write(tr_los + '\t' + dev_loss)
+            f.write(str(tr_loss) + '\t' + str(dev_loss))
+            f.write('\n')
 
     make_losses_plot(plosses, pdev_losses, plot_fname, 'Train vs dev loss', 'loss')
 
@@ -522,6 +523,7 @@ if __name__ == '__main__':
     fname = 'accs' + str(date.today()) + '.txt'
     with open(fname, 'w') as f:
         for tr_acc, dev_acc in zip(paccs, pdev_accs):
-            f.write(tr_acc + '\t' + dev_acc)
+            f.write(str(tr_acc) + '\t' + str(dev_acc))
+            f.write('\n')
     writer.close()
 
