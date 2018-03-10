@@ -111,8 +111,10 @@ class Model(object):
         self.accuracy = self.add_accuracy_op(self.train_pred)
         self.dev_accuracy = self.add_accuracy_op(self.infer_pred)
         self.train_op = self.add_training_op(self.loss)
-        self.summary_op = self.add_summary_op(self.loss, self.accuracy)
-        self.dev_summary_op = self.add_summary_op(self.dev_loss, self.dev_accuracy, dev = True)
+        self.loss_summary, self.acc_summary = self.add_summary_op(self.loss, self.accuracy)
+        self.dev_loss_summary, self.dev_acc_summary = self.add_summary_op(self.dev_loss,
+                                                                          self.dev_accuracy,
+                                                                          dev = True)
 
 
 

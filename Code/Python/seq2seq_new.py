@@ -34,7 +34,7 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 64
-    n_epochs = 20
+    n_epochs = 40
     lr = 0.001
     max_grad_norm = 5.
     clip_gradients = True
@@ -224,16 +224,13 @@ class SequencePredictor(Model):
         return train_op
 
     def add_summary_op(self, loss, accuracy, dev = False):
-        with tf.name_scope("summaries"):
-            if not dev:
-                tf.summary.scalar("loss", loss)
-                tf.summary.scalar("accuracy", accuracy)
-                summary_op = tf.summary.merge_all()
-            else:
-                tf.summary.scalar("dev_loss", loss)
-                tf.summary.scalar("dev_accuracy", accuracy)
-                summary_op = tf.summary.merge_all()
-            return summary_op
+        if not dev:
+            loss_summary = tf.summary.scalar("train_loss", loss)
+            accuracy_summary = tf.summary.scalar("train_accuracy", accuracy)
+        else:
+            loss_summary = tf.summary.scalar("dev_loss", loss)
+            accuracy_summary = tf.summary.scalar("dev_accuracy", accuracy)
+        return loss_summary, accuracy_summary
 
     def train_on_batch(self, sess, inputs_batch, targets_batch):
         """
@@ -243,7 +240,8 @@ class SequencePredictor(Model):
         inputs_batch_padded, _ = padded_batch_lr(inputs_batch,
                                                  self.config.max_length_x,
                                                  self.config.voc)
-        length_inputs_batch = np.asarray([min(self.config.max_length_x,len(item)) for item in inputs_batch])
+        length_inputs_batch = np.asarray([min(self.config.max_length_x,len(item))\
+                                              for item in inputs_batch])
 
         if targets_batch is None:
             feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
@@ -256,7 +254,8 @@ class SequencePredictor(Model):
                                                                self.config.max_length_y,
                                                                self.config.voc,
                                                                option = 'decoder_targets')
-            length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)+1) for item in targets_batch])
+            length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)+1)\
+                                                   for item in targets_batch])
             feed = self.create_feed_dict(inputs_batch_padded,
                                          length_inputs_batch,
                                          mask_batch,
@@ -264,14 +263,14 @@ class SequencePredictor(Model):
                                          decoder_batch_padded,
                                          targets_batch_padded)
 
-        _, loss, grad_norm, acc = sess.run([self.train_op, self.loss, self.grad_norm, self.accuracy], feed_dict=feed)
-
-        preds = np.asarray(sess.run([self.train_pred], feed_dict = feed))
-        preds = np.argmax(preds[0],2)
-        print("\n")
-        print(tokens_to_sentences(targets_batch[0], self.config.idx2word))
-        print(tokens_to_sentences(preds[0], self.config.idx2word))
-        return loss, grad_norm, acc
+        _, preds, loss, acc, loss_summ, acc_summ = sess.run([self.train_op,
+                                                       self.train_pred,
+                                                       self.loss,
+                                                       self.accuracy,
+                                                       self.loss_summary,
+                                                       self.acc_summary], feed_dict=feed)
+        preds = np.argmax(preds, 2)
+        return preds, loss, acc, loss_summ, acc_summ
 
     def predict_on_batch(self, sess, inputs_batch, targets_batch = None):
         """
@@ -286,7 +285,8 @@ class SequencePredictor(Model):
         inputs_batch_padded, _ = padded_batch_lr(inputs_batch,
                                                  self.config.max_length_x,
                                                  self.config.voc)
-        length_inputs_batch = np.asarray([min(self.config.max_length_x,len(item)) for item in inputs_batch])
+        length_inputs_batch = np.asarray([min(self.config.max_length_x,len(item))\
+                                              for item in inputs_batch])
         if targets_batch is None:
             feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
         else:
@@ -299,53 +299,53 @@ class SequencePredictor(Model):
                                                                self.config.voc,
                                                                option = 'decoder_targets')
 
-            #length_decoder_batch = np.asarray([self.config.max_length_y for item in targets_batch])
-            length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)+1) for item in targets_batch])
+            length_decoder_batch = np.asarray([min(self.config.max_length_y, len(item)+1)\
+                                                   for item in targets_batch])
             feed = self.create_feed_dict(inputs_batch_padded,
                                          length_inputs_batch,
                                          mask_batch,
                                          length_decoder_batch,
                                          decoder_batch_padded,
                                          targets_batch_padded)
-        predictions, dev_loss, dev_acc = sess.run([self.infer_pred, self.dev_loss, self.dev_accuracy], feed_dict=feed)
-        preds = np.argmax(predictions,2)
-        print(tokens_to_sentences(targets_batch[0], self.config.idx2word))
-        print(tokens_to_sentences(preds[0], self.config.idx2word))
-        return preds, dev_loss, dev_acc
+
+        preds, dev_loss, dev_acc, dev_loss_summ, dev_acc_summ = sess.run([self.infer_pred,
+                                                                          self.dev_loss,
+                                                                          self.dev_accuracy,
+                                                                          self.dev_loss_summary,
+                                                                          self.dev_acc_summary],
+                                                                          feed_dict=feed)
+        preds = np.argmax(preds,2)
+        return preds, dev_loss, dev_acc, dev_loss_summ, dev_acc_summ
 
     def run_epoch(self, sess, saver, train, dev):
         prog = Progbar(target= int(len(train) / self.config.batch_size))
-        losses, grad_norms, accs = [], [], []
+        losses, accs = [], []
         for i, batch in enumerate(minibatches(train, self.config.batch_size)):
-            loss, grad_norm, acc = self.train_on_batch(sess, *batch)
+            train_pred, loss, acc, loss_summ, acc_summ = self.train_on_batch(sess, *batch)
+
             losses.append(loss)
-            grad_norms.append(grad_norm)
             accs.append(acc)
             prog.update(i + 1, [("train loss", loss), ("train acc", acc)])
 
         print("\nEvaluating on dev set...")
-        predictions = []
-        references = []
-        dev_losses = []
-        dev_accs = []
+        dev_preds, refs, dev_losses, dev_accs = [], [], [], []
         prog_dev = Progbar(target= int(len(dev) / self.config.batch_size))
         for i, batch in enumerate(minibatches(dev, self.config.batch_size)):
-            inputs_batch, targets_batch = batch
-            # prediction = list(self.predict_on_batch(sess, inputs_batch))
-            prediction, dev_loss, dev_acc = self.predict_on_batch(sess, *batch)
-            prediction = list(prediction)
+            _, targets_batch = batch
+            dev_pred, dev_loss, dev_acc, dev_loss_summ, dev_acc_summ = self.predict_on_batch(sess, *batch)
+            dev_pred = list(dev_pred)
             dev_losses.append(dev_loss)
             dev_accs.append(dev_acc)
-            predictions += prediction
-            references += list(targets_batch)
+            dev_preds += dev_pred
+            refs += list(targets_batch)
             prog_dev.update(i + 1, [("dev loss", dev_loss), ("dev_acc", dev_acc)])
 
-        predictions = [tokens_to_sentences(pred, self.config.idx2word) for pred in predictions]
-        references  = [tokens_to_sentences(ref, self.config.idx2word) for ref in references]
+        dev_preds = [tokens_to_sentences(pred, self.config.idx2word) for pred in dev_preds]
+        refs  = [tokens_to_sentences(ref, self.config.idx2word) for ref in refs]
 
-        f1, _, _ = rouge_n(predictions, references)
+        f1, _, _ = rouge_n(dev_preds, refs)
         print("- dev rouge f1: {}".format(f1))
-        return losses, grad_norms, accs, predictions, f1, dev_losses, dev_accs
+        return losses, accs, dev_losses, dev_accs, loss_summ, acc_summ, dev_loss_summ, dev_acc_summ, f1
 
     def fit(self, sess, saver, train, dev):
         losses, grad_norms, predictions, dev_losses = [], [], [], []
@@ -354,28 +354,27 @@ class SequencePredictor(Model):
         best_dev_loss = np.inf
         for epoch in range(self.config.n_epochs):
             logger.info("Epoch %d out of %d", epoch + 1, self.config.n_epochs)
-            loss, grad_norm, acc, preds, f1, dev_loss, dev_acc = self.run_epoch(sess,
-                                                                                saver,
-                                                                                train,
-                                                                                dev)
-            # if writer:
-                # print("Saving graph in ./data/graph/loss.summary")
-                # writer.add_summary(summ, global_step = epoch)
-                # writer.add_summary(dev_summ, global_step = epoch)
-            # if f1 > best_dev_ROUGE:
-            if dev_loss[-1] < best_dev_loss:
-                best_dev_loss = dev_loss[-1]
-                # best_dev_ROUGE = f1
+            loss, acc, dev_loss, dev_acc, lsumm, asumm, d_lsumm, d_asumm, f1 = self.run_epoch(sess, saver, train, dev)
+            if writer:
+                print("Saving graph in ./data/graph/summaries")
+                writer.add_summary(lsumm, global_step = epoch)
+                writer.add_summary(asumm, global_step = epoch)
+                writer.add_summary(d_lsumm, global_step = epoch)
+                writer.add_summary(d_asumm, global_step = epoch)
+
+            dev_loss_epoch = np.mean(np.asarray(dev_loss))
+            if dev_loss_epoch < best_dev_loss:
+                best_dev_loss = dev_loss_epoch
                 if saver:
                     print("New best dev loss! Saving model in ./data/weights/model.weights")
                     saver.save(sess, './data/weights/model.weights')
+
             losses.append(loss)
             dev_losses.append(dev_loss)
-            grad_norms.append(grad_norm)
             accs.append(acc)
             dev_accs.append(dev_acc)
-            predictions.append(preds)
-        return losses, grad_norms, predictions, dev_losses, accs, dev_accs
+
+        return losses, dev_losses, accs, dev_accs
 
     def __init__(self, config, pretrained_embeddings):
         self.pretrained_embeddings = pretrained_embeddings
@@ -461,45 +460,43 @@ if __name__ == '__main__':
         print(80 * "=")
         print("TRAINING")
         print(80 * "=")
-        losses, grad_norms, predictions, dev_losses, accs, dev_accs = model.fit(sess,
-                                                                                # saver,
-                                                                                None,
-                                                                                train,
-                                                                                dev)
-        if not debug:
-            print(80 * "=")
-            print("TESTING")
-            print(80 * "=")
-            print("Restoring the best model weights found on the dev set")
-            saver.restore(sess, './data/weights/model.weights')
-            print("Final evaluation on test set")
-            predictions = []
-            references = []
-            test_losses = []
-            test_accs = []
-            for batch in minibatches(test, model.config.batch_size):
-                inputs_batch, targets_batch = batch
-                #prediction = list(model.predict_on_batch(sess, inputs_batch))
-                prediction, test_loss, test_acc = model.predict_on_batch(sess, *batch)
-                prediction = list(prediction)
-                predictions += prediction
-                references += list(targets_batch)
-                test_losses.append(test_loss)
-                test_accs.append(test_acc)
+        losses, dev_losses, accs, dev_accs = model.fit(sess,
+                                                       saver,
+                                                       train,
+                                                       dev)
+        print(80 * "=")
+        print("TESTING")
+        print(80 * "=")
+        print("Restoring the best model weights found on the dev set")
+        saver.restore(sess, './data/weights/model.weights')
+        print("Final evaluation on test set")
+        preds = []
+        refs = []
+        test_losses = []
+        test_accs = []
+        for batch in minibatches(test, model.config.batch_size):
+            inputs_batch, targets_batch = batch
+            pred, test_loss, test_acc, _, _ = model.predict_on_batch(sess, *batch)
+            pred = list(pred)
+            preds += pred
+            refs += list(targets_batch)
+            test_losses.append(test_loss)
+            test_accs.append(test_acc)
 
-            predictions = [tokens_to_sentences(pred, model.config.idx2word) for pred in predictions]
-            references  = [tokens_to_sentences(ref, model.config.idx2word) for ref in references]
+        mean_test_loss = np.mean(np.asarray(test_losses))
+        preds = [tokens_to_sentences(pred, model.config.idx2word) for pred in preds]
+        refs  = [tokens_to_sentences(ref, model.config.idx2word) for ref in refs]
 
-            f1, _, _ = rouge_n(predictions, references)
-            print("- test ROUGE: {}".format(f1))
-            print("- test loss: {}".format(test_losses[-1]))
-            print("Writing predictions")
-            fname = 'predictions' + str(date.today()) + '.txt'
-            with open(fname, 'w') as f:
-                for pred, ref in zip(predictions, references):
-                    f.write(pred + '\t' + ref)
-                    f.write('\n')
-            print("Done!")
+        f1, _, _ = rouge_n(preds, refs)
+        print("- test ROUGE: {}".format(f1))
+        print("- test loss: {}".format(mean_test_loss))
+        print("Writing predictions")
+        fname = './data/predictions' + str(date.today()) + '.txt'
+        with open(fname, 'w') as f:
+            for pred, ref in zip(preds, refs):
+                f.write(pred + '\t' + ref)
+                f.write('\n')
+        print("Done!")
 
     plot_fname = 'loss' + str(date.today())
     plosses = [np.mean(np.array(item)) for item in losses]
