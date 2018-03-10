@@ -34,7 +34,7 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 64
-    n_epochs = 40
+    n_epochs = 20
     lr = 0.001
     max_grad_norm = 5.
     clip_gradients = True
@@ -498,12 +498,12 @@ if __name__ == '__main__':
                 f.write('\n')
         print("Done!")
 
-    plot_fname = 'loss' + str(date.today())
+    plot_fname = 'loss_plot-' + str(date.today())
     plosses = [np.mean(np.array(item)) for item in losses]
     pdev_losses = [np.mean(np.array(item)) for item in dev_losses]
 
     print("Writing losses to file ...")
-    fname = 'losses' + str(date.today()) + '.txt'
+    fname = 'losses-' + str(date.today()) + '.txt'
     with open(fname, 'w') as f:
         for tr_loss, dev_loss in zip(plosses, pdev_losses):
             f.write(str(tr_loss) + '\t' + str(dev_loss))
@@ -511,13 +511,13 @@ if __name__ == '__main__':
 
     make_losses_plot(plosses, pdev_losses, plot_fname, 'Train vs dev loss', 'loss')
 
-    plot_fname = 'acc' + str(date.today())
+    plot_fname = 'acc_plot-' + str(date.today())
     paccs = [np.mean(np.array(item)) for item in accs]
     pdev_accs = [np.mean(np.array(item)) for item in dev_accs]
     make_losses_plot(paccs, pdev_accs, plot_fname, 'Train vs dev accuracy', 'acc')
 
     print("Writing accuracies to file ...")
-    fname = 'accs' + str(date.today()) + '.txt'
+    fname = 'accs-' + str(date.today()) + '.txt'
     with open(fname, 'w') as f:
         for tr_acc, dev_acc in zip(paccs, pdev_accs):
             f.write(str(tr_acc) + '\t' + str(dev_acc))
