@@ -35,7 +35,7 @@ class Config:
     """
     batch_size = 64
     n_epochs = 20
-    lr = 0.001
+    lr = 0.005
     max_grad_norm = 5.
     clip_gradients = True
     encoder_hidden_units = 256
@@ -319,13 +319,22 @@ class SequencePredictor(Model):
 
     def run_epoch(self, sess, saver, train, dev):
         prog = Progbar(target= int(len(train) / self.config.batch_size))
-        losses, accs = [], []
+        train_preds, losses, accs, refs = [], [], [], []
         for i, batch in enumerate(minibatches(train, self.config.batch_size)):
+            _, targets_batch = batch
             train_pred, loss, acc, loss_summ, acc_summ = self.train_on_batch(sess, *batch)
-
+            train_pred = list(train_pred)
             losses.append(loss)
             accs.append(acc)
+            train_preds += train_pred
+            refs += list(targets_batch)
             prog.update(i + 1, [("train loss", loss), ("train acc", acc)])
+        
+        train_preds = [tokens_to_sentences(pred, self.config.idx2word) for pred in train_preds]
+        refs  = [tokens_to_sentences(ref, self.config.idx2word) for ref in refs]
+
+        train_f1, _, _ = rouge_n(train_preds, refs)
+        print("- train rouge f1: {}".format(train_f1))
 
         print("\nEvaluating on dev set...")
         dev_preds, refs, dev_losses, dev_accs = [], [], [], []
@@ -343,9 +352,9 @@ class SequencePredictor(Model):
         dev_preds = [tokens_to_sentences(pred, self.config.idx2word) for pred in dev_preds]
         refs  = [tokens_to_sentences(ref, self.config.idx2word) for ref in refs]
 
-        f1, _, _ = rouge_n(dev_preds, refs)
-        print("- dev rouge f1: {}".format(f1))
-        return losses, accs, dev_losses, dev_accs, loss_summ, acc_summ, dev_loss_summ, dev_acc_summ, f1
+        dev_f1, _, _ = rouge_n(dev_preds, refs)
+        print("- dev rouge f1: {}".format(dev_f1))
+        return losses, accs, dev_losses, dev_accs, loss_summ, acc_summ, dev_loss_summ, dev_acc_summ, dev_f1
 
     def fit(self, sess, saver, train, dev):
         losses, grad_norms, predictions, dev_losses = [], [], [], []
