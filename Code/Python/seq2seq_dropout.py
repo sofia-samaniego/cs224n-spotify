@@ -21,7 +21,8 @@ logger.setLevel(logging.DEBUG)
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 global UNK_IDX, START_IDX, END_IDX, PAD_IDX
-debug = False
+#debug = False
+debug = True
 
 class Config:
     """Holds model hyperparams and data information.
@@ -62,10 +63,13 @@ class SequencePredictor(Model):
         self.mask_placeholder = tf.placeholder(tf.bool, shape = (None, self.config.max_length_y),
                                                         name = "mask_placeholder")
 
+        self.dropout_placeholder = tf.placeholder(tf.float32, name = "dropout_placeholder")
+
     def create_feed_dict(self, inputs_batch, length_encoder_batch, mask_batch = None,
                                                                    length_decoder_batch = None,
                                                                    decoder_inputs_batch = None,
-                                                                   targets_batch = None):
+                                                                   targets_batch = None,
+                                                                   dropout = 0):
         """
         Creates the feed_dict for the model.
         """
@@ -77,13 +81,15 @@ class SequencePredictor(Model):
                             self.decoder_targets: targets_batch,
                             self.length_encoder_inputs: length_encoder_batch,
                             self.length_decoder_inputs: length_decoder_batch,
-                            self.mask_placeholder : mask_batch
+                            self.mask_placeholder : mask_batch,
+                            self.dropout_placeholder : dropout
                         }
         else:
             feed_dict = {
                             self.encoder_inputs: inputs_batch,
                             self.length_encoder_inputs: length_encoder_batch,
-                            self.mask_placeholder : mask_batch
+                            self.mask_placeholder : mask_batch,
+                            self.dropout_placeholder : dropout
                         }
 
         return feed_dict
@@ -115,12 +121,16 @@ class SequencePredictor(Model):
             pred_outputs: tf.Tensor of shape #TODO
         """
 
+        encoder_inputs_embedded, decoder_inputs_embedded = self.add_embeddings()
+
         # Encoder
         encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
         encoder_cell = tf.contrib.rnn.DropoutWrapper(cell = encoder_cell,
-                                                     input_keep_prob = (1.0 - self.config.pdrop))
+                                                     variational_recurrent = True,
+                                                     dtype = encoder_inputs_embedded.dtype,
+                                                     input_size = encoder_inputs_embedded.get_shape()[2],
+                                                     input_keep_prob = (1.0 - self.dropout_placeholder))
 
-        encoder_inputs_embedded, decoder_inputs_embedded = self.add_embeddings()
         initial_state = encoder_cell.zero_state(tf.shape(encoder_inputs_embedded)[0],
                                                 dtype = tf.float32)
         _, encoder_final_state = tf.nn.dynamic_rnn(encoder_cell,
@@ -144,7 +154,7 @@ class SequencePredictor(Model):
                 # Here could add attn_cell, etc. (see https://gist.github.com/ilblackdragon/)
                 decoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.decoder_hidden_units)
                 encoder_cell = tf.contrib.rnn.DropoutWrapper(cell = decoder_cell,
-                                                             input_keep_prob = (1.0 - self.config.pdrop))
+                                                             input_keep_prob = (1.0 - self.dropout_placeholder))
                 projection_layer = layers_core.Dense(self.config.voc_size, use_bias = False)
                 maximum_iterations = self.config.max_length_y
                 decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell,
@@ -249,7 +259,7 @@ class SequencePredictor(Model):
                                               for item in inputs_batch])
 
         if targets_batch is None:
-            feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch)
+            feed = self.create_feed_dict(inputs_batch_padded, length_inputs_batch, self.config.pdrop)
         else:
             decoder_batch_padded, _ = padded_batch_lr(targets_batch,
                                                      self.config.max_length_y,
@@ -266,7 +276,8 @@ class SequencePredictor(Model):
                                          mask_batch,
                                          length_decoder_batch,
                                          decoder_batch_padded,
-                                         targets_batch_padded)
+                                         targets_batch_padded,
+                                         self.config.pdrop)
 
         _, preds, loss, acc, loss_summ, acc_summ = sess.run([self.train_op,
                                                        self.train_pred,
