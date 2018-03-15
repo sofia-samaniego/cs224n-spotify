@@ -70,6 +70,10 @@ class SequencePredictor(Model):
                                                                    decoder_inputs_batch = None,
                                                                    targets_batch = None,
                                                                    dropout = 0):
+    def create_feed_dict(self, inputs_batch, length_encoder_batch, mask_batch = None,
+                                                                   length_decoder_batch = None,
+                                                                   decoder_inputs_batch = None,
+                                                                   targets_batch = None):
         """
         Creates the feed_dict for the model.
         """
@@ -83,6 +87,7 @@ class SequencePredictor(Model):
                             self.length_decoder_inputs: length_decoder_batch,
                             self.mask_placeholder : mask_batch,
                             self.dropout_placeholder : dropout
+                            self.mask_placeholder : mask_batch
                         }
         else:
             feed_dict = {
@@ -90,6 +95,7 @@ class SequencePredictor(Model):
                             self.length_encoder_inputs: length_encoder_batch,
                             self.mask_placeholder : mask_batch,
                             self.dropout_placeholder : dropout
+                            self.mask_placeholder : mask_batch
                         }
 
         return feed_dict
@@ -131,6 +137,12 @@ class SequencePredictor(Model):
                                                      input_size = encoder_inputs_embedded.get_shape()[2],
                                                      input_keep_prob = (1.0 - self.dropout_placeholder))
 
+        # Encoder
+        encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
+        encoder_cell = tf.contrib.rnn.DropoutWrapper(cell = encoder_cell,
+                                                     input_keep_prob = (1.0 - self.config.pdrop))
+
+        encoder_inputs_embedded, decoder_inputs_embedded = self.add_embeddings()
         initial_state = encoder_cell.zero_state(tf.shape(encoder_inputs_embedded)[0],
                                                 dtype = tf.float32)
         _, encoder_final_state = tf.nn.dynamic_rnn(encoder_cell,
@@ -278,6 +290,7 @@ class SequencePredictor(Model):
                                          decoder_batch_padded,
                                          targets_batch_padded,
                                          self.config.pdrop)
+                                         targets_batch_padded)
 
         _, preds, loss, acc, loss_summ, acc_summ = sess.run([self.train_op,
                                                        self.train_pred,
