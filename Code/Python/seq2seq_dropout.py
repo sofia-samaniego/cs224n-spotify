@@ -131,12 +131,7 @@ class SequencePredictor(Model):
                                                      input_size = encoder_inputs_embedded.get_shape()[2],
                                                      input_keep_prob = (1.0 - self.dropout_placeholder))
 
-        # Encoder
-        encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
-        encoder_cell = tf.contrib.rnn.DropoutWrapper(cell = encoder_cell,
-                                                     input_keep_prob = (1.0 - self.dropout_placeholder))
 
-        encoder_inputs_embedded, decoder_inputs_embedded = self.add_embeddings()
         initial_state = encoder_cell.zero_state(tf.shape(encoder_inputs_embedded)[0],
                                                 dtype = tf.float32)
         _, encoder_final_state = tf.nn.dynamic_rnn(encoder_cell,
@@ -159,7 +154,7 @@ class SequencePredictor(Model):
             with tf.variable_scope(scope, reuse=reuse):
                 # Here could add attn_cell, etc. (see https://gist.github.com/ilblackdragon/)
                 decoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.decoder_hidden_units)
-                encoder_cell = tf.contrib.rnn.DropoutWrapper(cell = decoder_cell,
+                decoder_cell = tf.contrib.rnn.DropoutWrapper(cell = decoder_cell,
                                                              input_keep_prob = (1.0 - self.dropout_placeholder))
                 projection_layer = layers_core.Dense(self.config.voc_size, use_bias = False)
                 maximum_iterations = self.config.max_length_y
