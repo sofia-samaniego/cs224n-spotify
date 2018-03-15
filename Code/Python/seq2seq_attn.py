@@ -141,10 +141,7 @@ class SequencePredictor(Model):
         # Decoder
         def decode(helper, scope, reuse = None):
             with tf.variable_scope(scope, reuse=reuse):
-                print('you reached this')
                 self.length_encoder_inputs.set_shape([self.config.batch_size])
-                print(self.length_encoder_inputs.shape)
-                print(self.length_encoder_inputs.get_shape().ndims)
                 attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
 						self.config.encoder_hidden_units,
 						memory = encoder_outputs,#)#,
