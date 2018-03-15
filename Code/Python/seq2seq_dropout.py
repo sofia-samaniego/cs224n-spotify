@@ -35,7 +35,7 @@ class Config:
         - change lr to tf.Variable
     """
     batch_size = 64
-    n_epochs = 30
+    n_epochs = 20
     lr = 0.0025
     max_grad_norm = 5.
     clip_gradients = True
