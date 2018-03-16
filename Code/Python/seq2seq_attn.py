@@ -378,8 +378,8 @@ class SequencePredictor(Model):
     def fit(self, sess, saver, train, dev):
         losses, grad_norms, predictions, dev_losses = [], [], [], []
         accs, dev_accs = [], []
-        # best_dev_ROUGE = -1.0
-        best_dev_loss = np.inf
+        best_dev_ROUGE = -1.0
+        # best_dev_loss = np.inf
         for epoch in range(self.config.n_epochs):
             logger.info("Epoch %d out of %d", epoch + 1, self.config.n_epochs)
             loss, acc, dev_loss, dev_acc, lsumm, asumm, d_lsumm, d_asumm, f1 = self.run_epoch(sess, saver, train, dev)
@@ -390,11 +390,14 @@ class SequencePredictor(Model):
                 writer.add_summary(d_lsumm, global_step = epoch)
                 writer.add_summary(d_asumm, global_step = epoch)
 
-            dev_loss_epoch = np.mean(np.asarray(dev_loss))
-            if dev_loss_epoch < best_dev_loss:
-                best_dev_loss = dev_loss_epoch
+            #dev_loss_epoch = np.mean(np.asarray(dev_loss))
+            #if dev_loss_epoch < best_dev_loss:
+            if f1 > best_dev_ROUGE:
+                best_dev_ROUGE = f1
+                #best_dev_loss = dev_loss_epoch
                 if saver:
-                    print("New best dev loss! Saving model in ./data/weights/model.weights")
+                    print("New best dev ROUGE! Saving model in ./data/weights/model.weights")
+                    #print("New best dev loss! Saving model in ./data/weights/model.weights")
                     saver.save(sess, './data/weights/model.weights')
 
             losses.append(loss)
