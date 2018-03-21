@@ -1,9 +1,26 @@
-@article{luong17,
-  author  = {Minh{-}Thang Luong and Eugene Brevdo and Rui Zhao},
-  title   = {Neural Machine Translation (seq2seq) Tutorial},
-  journal = {https://github.com/tensorflow/nmt},
-  year    = {2017},
+@inproceedings{sutskever2014sequence,
+  title={Sequence to sequence learning with neural networks},
+  author={Sutskever, Ilya and Vinyals, Oriol and Le, Quoc V},
+  booktitle={Advances in neural information processing systems},
+  pages={3104--3112},
+  year={2014}
 }
+@inproceedings{he2008rouge,
+  title={ROUGE-C: A fully automated evaluation method for multi-document summarization},
+  author={He, Tingting and Chen, Jinguang and Ma, Liang and Gui, Zhuoming and Li, Fang and Shao, Wei and Wang, Qian},
+  booktitle={Granular Computing, 2008. GrC 2008. IEEE International Conference on},
+  pages={269--274},
+  year={2008},
+  organization={IEEE}
+}
+
+@article{allahyari2017text,
+  title={Text summarization techniques: A brief survey},
+  author={Allahyari, Mehdi and Pouriyeh, Seyedamin and Assefi, Mehdi and Safaei, Saeid and Trippe, Elizabeth D and Gutierrez, Juan B and Kochut, Krys},
+  journal={arXiv preprint arXiv:1707.02268},
+  year={2017}
+}
+
 @article{rush2015neural,
   title={A neural attention model for abstractive sentence summarization},
   author={Rush, Alexander M and Chopra, Sumit and Weston, Jason},
@@ -22,6 +39,47 @@
   title={Abstractive text summarization using sequence-to-sequence rnns and beyond},
   author={Nallapati, Ramesh and Zhou, Bowen and Gulcehre, Caglar and Xiang, Bing and others},
   journal={arXiv preprint arXiv:1602.06023},
+  year={2016}
+}
+@article{see2017get,
+  title={Get to the point: Summarization with pointer-generator networks},
+  author={See, Abigail and Liu, Peter J and Manning, Christopher D},
+  journal={arXiv preprint arXiv:1704.04368},
+  year={2017}
+}
+@article{bahdanau2014neural,
+  title={Neural machine translation by jointly learning to align and translate},
+  author={Bahdanau, Dzmitry and Cho, Kyunghyun and Bengio, Yoshua},
+  journal={arXiv preprint arXiv:1409.0473},
+  year={2014}
+}
+@article{luong17,
+  author  = {Minh{-}Thang Luong and Eugene Brevdo and Rui Zhao},
+  title   = {Neural Machine Translation (seq2seq) Tutorial},
+  journal = {https://github.com/tensorflow/nmt},
+  year    = {2017},
+}
+@article{srivastava2014dropout,
+  title={Dropout: A simple way to prevent neural networks from overfitting},
+  author={Srivastava, Nitish and Hinton, Geoffrey and Krizhevsky, Alex and Sutskever, Ilya and Salakhutdinov, Ruslan},
+  journal={The Journal of Machine Learning Research},
+  volume={15},
+  number={1},
+  pages={1929--1958},
+  year={2014},
+  publisher={JMLR. org}
+}
+@article{zaremba2014recurrent,
+  title={Recurrent neural network regularization},
+  author={Zaremba, Wojciech and Sutskever, Ilya and Vinyals, Oriol},
+  journal={arXiv preprint arXiv:1409.2329},
+  year={2014}
+}
+@inproceedings{gal2016theoretically,
+  title={A theoretically grounded application of dropout in recurrent neural networks},
+  author={Gal, Yarin and Ghahramani, Zoubin},
+  booktitle={Advances in neural information processing systems},
+  pages={1019--1027},
   year={2016}
 }
 @inproceedings{iyyer2014generating,
@@ -54,6 +112,18 @@
   howpublished = {\url{https://github.com/lmthang/thesis}},
   commit = {73e6c4a15de8ae83351ea88295bb61f91136baa8}
 }
+@article{Britz:2017,
+  author          = {{Britz}, Denny and {Goldie}, Anna and {Luong}, Thang and {Le}, Quoc},
+  title           = "{Massive Exploration of Neural Machine Translation Architectures}",
+  journal         = {ArXiv e-prints},
+  archivePrefix   = "arXiv",
+  eprinttype      = {arxiv},
+  eprint          = {1703.03906},
+  primaryClass    = "cs.CL",
+  keywords        = {Computer Science - Computation and Language},
+  year            = 2017,
+  month           = mar,
+}
 @misc{rnnlg,
   author = {Cambridge Dialogue Systems Group},
   title = {RNNLG},
@@ -62,6 +132,60 @@
   journal = {GitHub repository},
   howpublished = {\url{https://github.com/shawnwun/RNNLG}},
   commit = {61ac6fd1304c9dcf29ea894452e685652718f6f8}
+}
+@inproceedings{pennington2014glove,
+  title={Glove: Global vectors for word representation},
+  author={Pennington, Jeffrey and Socher, Richard and Manning, Christopher},
+  booktitle={Proceedings of the 2014 conference on empirical methods in natural language processing (EMNLP)},
+  pages={1532--1543},
+  year={2014}
+}
+@misc{tensorflow2015-whitepaper,
+title={ {TensorFlow}: Large-Scale Machine Learning on Heterogeneous Systems},
+url={https://www.tensorflow.org/},
+note={Software available from tensorflow.org},
+author={
+    Mart\'{\i}n~Abadi and
+    Ashish~Agarwal and
+    Paul~Barham and
+    Eugene~Brevdo and
+    Zhifeng~Chen and
+    Craig~Citro and
+    Greg~S.~Corrado and
+    Andy~Davis and
+    Jeffrey~Dean and
+    Matthieu~Devin and
+    Sanjay~Ghemawat and
+    Ian~Goodfellow and
+    Andrew~Harp and
+    Geoffrey~Irving and
+    Michael~Isard and
+    Yangqing Jia and
+    Rafal~Jozefowicz and
+    Lukasz~Kaiser and
+    Manjunath~Kudlur and
+    Josh~Levenberg and
+    Dandelion~Man\'{e} and
+    Rajat~Monga and
+    Sherry~Moore and
+    Derek~Murray and
+    Chris~Olah and
+    Mike~Schuster and
+    Jonathon~Shlens and
+    Benoit~Steiner and
+    Ilya~Sutskever and
+    Kunal~Talwar and
+    Paul~Tucker and
+    Vincent~Vanhoucke and
+    Vijay~Vasudevan and
+    Fernanda~Vi\'{e}gas and
+    Oriol~Vinyals and
+    Pete~Warden and
+    Martin~Wattenberg and
+    Martin~Wicke and
+    Yuan~Yu and
+    Xiaoqiang~Zheng},
+  year={2015},
 }
 @misc{namas,
   author = {Facebook AI Group},

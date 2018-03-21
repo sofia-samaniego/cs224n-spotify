@@ -30,10 +30,10 @@ MAX_SEQUENCE_LENGTH = 1500
 
 MPD_PATH = '/Users/sofiasf/Data224n/SpotifyPlaylists/data/'
 MPD_DEBUG_PATH = '/Users/sofiasf/Data224n/SpotifyPlaylists/data_debug/'
-#GLOVE_PATH = '/Users/sofiasf/Data224n/Glove/'
-#DATA_PATH = '/Users/sofiasf/Documents/Stanford/Win18/cs224n/cs224n-spotify/Data'
-GLOVE_PATH = '/home/sofiasf/cs224n-spotify/Data'
-DATA_PATH = '/home/sofiasf/cs224n-spotify/Data'
+GLOVE_PATH = '/Users/sofiasf/Data224n/Glove/'
+DATA_PATH = '/Users/sofiasf/Documents/Stanford/Win18/cs224n/cs224n-spotify/Data'
+#GLOVE_PATH = '/home/sofiasf/cs224n-spotify/Data'
+#DATA_PATH = '/home/sofiasf/cs224n-spotify/Data'
 
 def process_mpd(path):
     data = []
@@ -70,7 +70,7 @@ def normalize_name(name):
 def create_GloVe_embedding(path):
     vocabulary = {}
     E = []
-    with open(os.path.join(GLOVE_PATH, 'top_vectors.txt')) as f:
+    with open(os.path.join(GLOVE_PATH, 'pruned/top_vectors.txt')) as f:
         i = 0
         for line in f:
             values = line.split()
