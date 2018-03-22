@@ -1,0 +1,73 @@
+\begin{thebibliography}{10}
+
+\bibitem{sutskever2014sequence}
+I.~Sutskever, O.~Vinyals, and Q.~V. Le, ``Sequence to sequence learning with
+  neural networks,'' in {\em Advances in neural information processing
+  systems}, pp.~3104--3112, 2014.
+
+\bibitem{he2008rouge}
+T.~He, J.~Chen, L.~Ma, Z.~Gui, F.~Li, W.~Shao, and Q.~Wang, ``Rouge-c: A fully
+  automated evaluation method for multi-document summarization,'' in {\em
+  Granular Computing, 2008. GrC 2008. IEEE International Conference on},
+  pp.~269--274, IEEE, 2008.
+
+\bibitem{allahyari2017text}
+M.~Allahyari, S.~Pouriyeh, M.~Assefi, S.~Safaei, E.~D. Trippe, J.~B. Gutierrez,
+  and K.~Kochut, ``Text summarization techniques: A brief survey,'' {\em arXiv
+  preprint arXiv:1707.02268}, 2017.
+
+\bibitem{rush2015neural}
+A.~M. Rush, S.~Chopra, and J.~Weston, ``A neural attention model for
+  abstractive sentence summarization,'' {\em arXiv preprint arXiv:1509.00685},
+  2015.
+
+\bibitem{nallapati2016abstractive}
+R.~Nallapati, B.~Zhou, C.~Gulcehre, B.~Xiang, {\em et~al.}, ``Abstractive text
+  summarization using sequence-to-sequence rnns and beyond,'' {\em arXiv
+  preprint arXiv:1602.06023}, 2016.
+
+\bibitem{see2017get}
+A.~See, P.~J. Liu, and C.~D. Manning, ``Get to the point: Summarization with
+  pointer-generator networks,'' {\em arXiv preprint arXiv:1704.04368}, 2017.
+
+\bibitem{bahdanau2014neural}
+D.~Bahdanau, K.~Cho, and Y.~Bengio, ``Neural machine translation by jointly
+  learning to align and translate,'' {\em arXiv preprint arXiv:1409.0473},
+  2014.
+
+\bibitem{luong17}
+M.~Luong, E.~Brevdo, and R.~Zhao, ``Neural machine translation (seq2seq)
+  tutorial,'' {\em https://github.com/tensorflow/nmt}, 2017.
+
+\bibitem{srivastava2014dropout}
+N.~Srivastava, G.~Hinton, A.~Krizhevsky, I.~Sutskever, and R.~Salakhutdinov,
+  ``Dropout: A simple way to prevent neural networks from overfitting,'' {\em
+  The Journal of Machine Learning Research}, vol.~15, no.~1, pp.~1929--1958,
+  2014.
+
+\bibitem{gal2016theoretically}
+Y.~Gal and Z.~Ghahramani, ``A theoretically grounded application of dropout in
+  recurrent neural networks,'' in {\em Advances in neural information
+  processing systems}, pp.~1019--1027, 2016.
+
+\bibitem{tensorflow2015-whitepaper}
+M.~Abadi, A.~Agarwal, P.~Barham, E.~Brevdo, Z.~Chen, C.~Citro, G.~S. Corrado,
+  A.~Davis, J.~Dean, M.~Devin, S.~Ghemawat, I.~Goodfellow, A.~Harp, G.~Irving,
+  M.~Isard, Y.~Jia, R.~Jozefowicz, L.~Kaiser, M.~Kudlur, J.~Levenberg,
+  D.~Man\'{e}, R.~Monga, S.~Moore, D.~Murray, C.~Olah, M.~Schuster, J.~Shlens,
+  B.~Steiner, I.~Sutskever, K.~Talwar, P.~Tucker, V.~Vanhoucke, V.~Vasudevan,
+  F.~Vi\'{e}gas, O.~Vinyals, P.~Warden, M.~Wattenberg, M.~Wicke, Y.~Yu, and
+  X.~Zheng, ``{TensorFlow}: Large-scale machine learning on heterogeneous
+  systems,'' 2015.
+\newblock Software available from tensorflow.org.
+
+\bibitem{pennington2014glove}
+J.~Pennington, R.~Socher, and C.~Manning, ``Glove: Global vectors for word
+  representation,'' in {\em Proceedings of the 2014 conference on empirical
+  methods in natural language processing (EMNLP)}, pp.~1532--1543, 2014.
+
+\bibitem{Britz:2017}
+D.~{Britz}, A.~{Goldie}, T.~{Luong}, and Q.~{Le}, ``{Massive Exploration of
+  Neural Machine Translation Architectures},'' {\em ArXiv e-prints}, Mar. 2017.
+
+\end{thebibliography}
